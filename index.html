@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="uk" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Python Academy LMS</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+
+<body>
+
+  <!-- AUTH -->
+  <div id="authOverlay" class="overlay">
+    <div class="modal auth-card">
+      <div class="brand-lg">🐍 Python<span>Pro</span></div>
+      <h2>Ласкаво просимо</h2>
+      <p>Твій прогрес зберігається локально. Введи ім'я:</p>
+
+      <form id="loginForm">
+        <input type="text" id="usernameInput" placeholder="Нікнейм..." required autocomplete="off">
+        <button type="submit" class="btn-primary full">Почати</button>
+      </form>
+
+      <div class="auth-link" id="authImportLink">Відновити через код (Імпорт)</div>
+      <div id="loginErr" class="tiny" style="margin-top:10px;color:var(--danger);display:none;"></div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-header" id="btnGoHome">
+        <div class="logo-shield" aria-label="Stratium">
+          <span class="logo-letter">S</span>
+        </div>
+        <div class="brand">
+          <div class="brand-main">STRATIUM</div>
+          <div class="brand-sub">ACADEMY</div>
+        </div>
+      </div>
+
+      <div class="user-panel">
+        <div class="user-info">
+          <div class="avatar" id="uiAvatar">U</div>
+          <div>
+            <div class="u-name" id="uiName">User</div>
+            <div class="u-xp" id="uiXP">0 XP</div>
+          </div>
+        </div>
+
+        <div class="user-actions">
+          <button id="btnTheme" class="btn-icon" title="Theme"><i class="ri-sun-line" id="uiThemeIcon"></i></button>
+          <button id="btnOpenSettings" class="btn-icon" title="Settings"><i class="ri-settings-3-line"></i></button>
+        </div>
+      </div>
+
+      <div id="sidebarContent" class="sidebar-scroll"></div>
+
+      <div class="sidebar-footer">
+        Автор курсу:<br>
+        <strong class="author">Олександр Стратій</strong><br>
+        <span class="mutedish tiny">© 2026</span>
+      </div>
+    </aside>
+
+    <main class="main-content">
+
+      <header class="top-bar">
+        <div>
+          <div id="breadcrumbs" class="breadcrumbs">Головна</div>
+
+          <!-- LEVEL BAR -->
+          <div class="levelbar">
+            <div class="levelbar-row">
+              <span id="uiLevel">Level 1</span>
+              <span id="uiLevelXP">0/200 XP</span>
+            </div>
+            <div class="levelbar-outer">
+              <div id="uiLevelFill" class="levelbar-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="streak">🔥 <span id="uiStreak">1</span> Day Streak</div>
+      </header>
+
+      <!-- HOME VIEW -->
+       
+      <div id="view-home" class="view active">
+        <div class="hero hero-banner">
+          
+          <div class="hero-inner">
+            <h1 class="hero-title">Вивчи Python <span>інтерактивно</span></h1>
+            <p class="hero-sub">Стань професіоналом</p>
+
+
+
+            <div class="hero-typing">
+              <span class="prompt">&gt;&gt;&gt; </span><span id="typedText"></span><span class="cursor">▍</span>
+            </div>
+
+            <div class="hero-stats">
+              <div class="stat-card">
+                <div class="stat-val" id="homeTotalXP">0</div>
+                <div class="stat-label">TOTAL XP</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-val"><span id="homeStreak">1</span> 🔥</div>
+                <div class="stat-label">DAY STREAK</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-val" id="homeRank">Beginner</div>
+                <div class="stat-label">RANK</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mentor-card">
+              <div class="mentor-avatar">👨‍💻</div>
+              <div>
+                <h3 class="mentor-title">Привіт! Я Олександр Стратій.</h3>
+                <p class="mentor-text">
+                  Я створив цей портал, щоб довести: програмування — це не складна математика, а творчість.
+                  Виконуй завдання, заробляй XP і ставай профі разом зі мною!
+                </p>
+              </div>
+            </div>
+
+
+        </div>
+
+        <h3 class="section-title">Твій шлях навчання</h3>
+        <div class="grid-courses" id="coursesList"></div>
+      </div>
+
+      <!-- MODULES VIEW -->
+      <div id="view-modules" class="view">
+        <div class="hero hero-compact">
+          <h1 id="modulesTitle">Модулі</h1>
+          <p id="modulesDesc">Обери модуль курсу.</p>
+        </div>
+        <div class="grid-courses" id="modulesList"></div>
+      </div>
+
+      <!-- LESSON VIEW -->
+      <div id="view-lesson" class="view">
+        <div class="lesson-vertical">
+
+          <div class="lesson-head">
+            <div class="lesson-head-left">
+              <h2 id="lessonTitle" class="lesson-title">...</h2>
+              <div class="lesson-meta">
+                <span class="badge" id="badgeKind">Завдання</span>
+                <span class="badge badge-muted" id="badgeAttempts">Спроби: 0/10</span>
+                <span class="badge badge-muted" id="badgeSaved">Saved</span>
+                <span class="badge badge-warn" id="badgeNoXP" style="display:none;">Без XP</span>
+              </div>
+            </div>
+
+            <div class="lesson-head-actions">
+              <button class="btn-chip" id="btnHint"><i class="ri-lightbulb-line"></i> Підказка</button>
+              <button class="btn-chip" id="btnClear"><i class="ri-eraser-line"></i> Очистити</button>
+            </div>
+          </div>
+
+          <div id="examWarnBox" class="warnbox" style="display:none;"></div>
+
+          <!-- Theory card -->
+          <section class="cardx">
+            <div class="cardx-head"><span class="cardx-ico">📚</span><span>Теорія</span></div>
+            <div id="lessonContent" class="typography"></div>
+          </section>
+
+          <!-- Task card -->
+          <section class="cardx">
+            <div class="cardx-head"><span class="cardx-ico">🎯</span><span>Завдання</span></div>
+            <p id="lessonTask" class="task-text">...</p>
+
+            <div class="expected-box">
+              <div class="expected-head">✅ Очікуваний результат</div>
+              <pre id="lessonExpected" class="expected-pre"></pre>
+            </div>
+
+            <div id="hintBox" class="hint-body"></div>
+
+            <div id="solutionBox" class="solution-box" style="display:none;">
+              <div class="solution-head">🧩 Приклад рішення (після 10 спроб)</div>
+              <pre id="solutionPre" class="solution-pre"></pre>
+              <div class="tiny mutedish" style="margin-top:8px;">
+                Після відкриття рішення ця задача буде зарахована <b>без XP</b>.
+              </div>
+            </div>
+          </section>
+
+          <!-- IO row -->
+          <section class="io-row">
+            <div class="cardx editor-card">
+              <div class="editor-head">
+                <span>main.py</span>
+                <div class="editor-actions">
+                  <span class="tiny mutedish"><span class="kbd">Ctrl</span>+<span class="kbd">Enter</span></span>
+                  <button class="btn-run" id="btnRun"><i class="ri-play-fill"></i> Run</button>
+                </div>
+              </div>
+
+              <div class="code-wrap">
+                <div class="gutter" id="gutter"></div>
+                <textarea id="codeEditor" spellcheck="false" placeholder="# Пиши код тут..."></textarea>
+              </div>
+            </div>
+
+            <div class="cardx term-card">
+              <div class="term-head">
+                <span class="term-title"><i class="ri-terminal-box-line"></i> Terminal</span>
+                <span class="tiny mutedish" id="termStatus">Ready</span>
+              </div>
+              <pre class="terminal" id="terminal">>>> Ready...</pre>
+            </div>
+          </section>
+
+          <div class="lesson-nav">
+            <button class="btn-prev" id="btnPrev">← Назад</button>
+            <button class="btn-next" id="btnNext">Далі →</button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- LEADERBOARD VIEW -->
+      <div id="view-leaderboard" class="view">
+        <div class="hero hero-compact">
+          <h1>🏆 Рейтинг</h1>
+          <p>Локальний demo leaderboard + твій профіль.</p>
+        </div>
+        <div class="board panelish" id="leaderboardList"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settingsOverlay" class="overlay">
+    <div class="modal settings-modal">
+      <div class="modal-head">
+        <h3>⚙️ Налаштування</h3>
+        <button id="btnCloseSettings" class="btn-close">✕</button>
+      </div>
+
+      <div class="set-block">
+        <label>🔊 Звук</label>
+        <p>Сигнал при успішному виконанні.</p>
+        <div class="row">
+          <label class="switch">
+            <input type="checkbox" id="soundToggle">
+            <span class="slider"></span>
+          </label>
+          <div class="mutedish tiny" style="align-self:center;">Sound effects</div>
+        </div>
+      </div>
+
+      <div class="set-block">
+        <label>🎨 Тема</label>
+        <p>Темна/світла — збережеться автоматично.</p>
+        <div class="row">
+          <button id="btnThemeModal">Перемкнути тему</button>
+        </div>
+      </div>
+
+      <div class="set-block">
+        <label>📤 Експорт (Зберегти прогрес)</label>
+        <p>Скопіюй цей код і збережи його.</p>
+        <div class="row">
+          <input type="text" id="exportData" readonly>
+          <button id="btnCopyExport">Copy</button>
+        </div>
+      </div>
+
+      <div class="set-block">
+        <label>📥 Імпорт (Завантажити прогрес)</label>
+        <p>Встав сюди код з іншого комп'ютера.</p>
+        <div class="row">
+          <input type="text" id="importData" placeholder="Встав код сюди...">
+          <button id="btnDoImport">Load</button>
+        </div>
+      </div>
+
+      <button id="btnResetAll" class="btn-danger full">Reset прогрес</button>
+      <button id="btnLogout" class="btn-danger full" style="margin-top:10px;">Вийти з акаунту</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="js/data.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

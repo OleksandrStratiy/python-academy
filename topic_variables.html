@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Course: Змінні та Математика</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #f5f7fa;
+            --sidebar-bg: #ffffff;
+            --text: #1f2937;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --border: #e5e7eb;
+            --code-bg: #1e1e1e;
+            --code-text: #e5e7eb;
+            --success: #10b981;
+            --hint-bg: #fffbeb;
+            --hint-border: #fcd34d;
+            --hint-text: #92400e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Inter", sans-serif; }
+
+        body { display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 280px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .logo-area { padding: 25px; border-bottom: 1px solid var(--border); }
+        .logo-area h2 { font-size: 20px; font-weight: 800; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+
+        .nav-list { flex: 1; overflow-y: auto; padding: 20px 15px; }
+
+        .nav-btn {
+            width: 100%; text-align: left; padding: 12px 15px;
+            margin-bottom: 5px; border-radius: 8px; border: none; background: none;
+            cursor: pointer; color: #4b5563; font-size: 14px; font-weight: 500;
+            transition: 0.2s; display: flex; justify-content: space-between;
+        }
+        .nav-btn:hover { background: #f3f4f6; color: var(--accent); }
+        .nav-btn.active { background: #eff6ff; color: var(--accent); font-weight: 700; }
+        .nav-btn.completed::after { content: "✓"; color: var(--success); font-weight: bold; }
+
+        .sidebar-footer { padding: 15px; border-top: 1px solid var(--border); background: #f9fafb; }
+        .btn-home {
+            text-decoration: none; display: flex; align-items: center; justify-content: center;
+            width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text); font-weight: 600; font-size: 14px; background: white; transition: 0.2s;
+        }
+        .btn-home:hover { background: #e5e7eb; }
+
+        /* --- MAIN CONTENT --- */
+        .main { flex: 1; padding: 40px; display: flex; flex-direction: column; overflow-y: auto; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+        .header { margin-bottom: 25px; }
+        .header h1 { font-size: 28px; font-weight: 800; margin-bottom: 10px; }
+        
+        .progress-container { width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+        .progress-bar { height: 100%; background: var(--success); width: 0%; transition: 0.5s ease; }
+
+        /* CARD & EDITOR */
+        .task-card { display: none; animation: fadeIn 0.4s ease; height: 100%; display: flex; flex-direction: column; }
+        .task-card.active { display: flex; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .theory-block {
+            background: #ffffff; border: 1px solid var(--border); border-radius: 12px;
+            padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .theory-title { color: var(--accent); font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .theory-text { line-height: 1.6; color: #374151; }
+        .theory-text code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; color: #db2777; font-family: 'Fira Code', monospace; font-size: 0.9em; }
+
+        .example-box {
+            background: #f8fafc; border-left: 4px solid var(--accent);
+            padding: 10px 15px; margin: 15px 0; font-family: 'Fira Code', monospace; font-size: 14px; color: #4b5563;
+        }
+
+        /* Workspace Grid */
+        .workspace { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex: 1; min-height: 350px; }
+        
+        .panel { display: flex; flex-direction: column; }
+        .panel-label { font-size: 12px; font-weight: 700; color: #9ca3af; text-transform: uppercase; margin-bottom: 8px; }
+
+        textarea {
+            flex: 1; background: var(--code-bg); color: var(--code-text); border: none; border-radius: 12px;
+            padding: 20px; font-family: 'Fira Code', monospace; font-size: 14px; line-height: 1.5;
+            resize: none; outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .terminal {
+            flex: 1; background: #0f172a; border-radius: 12px; padding: 20px;
+            font-family: 'Fira Code', monospace; font-size: 14px; color: #22c55e;
+            overflow-y: auto; border: 1px solid #1e293b;
+        }
+        .terminal-log { color: #6b7280; font-style: italic; }
+        .terminal-error { color: #ef4444; }
+
+        /* Controls */
+        .controls { margin-top: 20px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .btn { padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+        .btn-run { background: var(--accent); color: white; }
+        .btn-run:hover { background: var(--accent-hover); }
+        .btn-next { background: var(--success); color: white; opacity: 0.5; pointer-events: none; }
+        .btn-next.unlocked { opacity: 1; pointer-events: auto; animation: pulse 2s infinite; }
+        
+        .hint-box { margin-top: 10px; padding: 12px; background: var(--hint-bg); border: 1px solid var(--hint-border); color: var(--hint-text); border-radius: 8px; font-size: 13px; display: none; font-family: 'Fira Code', monospace; }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            body { flex-direction: column; overflow: auto; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+            .nav-list { display: none; }
+            .workspace { grid-template-columns: 1fr; height: auto; }
+            textarea { height: 200px; }
+            .terminal { height: 150px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo-area">
+        <h2>🐍 Python Pro</h2>
+    </div>
+    <div class="nav-list" id="navList">
+        </div>
+    <div class="sidebar-footer">
+        <a href="index.html" class="btn-home">🏠 На головну</a>
+    </div>
+</div>
+
+<div class="main">
+    <div class="header">
+        <h1 id="taskTitle">Змінні та Математика</h1>
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+    </div>
+
+    <div id="contentArea" style="flex: 1; display: flex; flex-direction: column;">
+        </div>
+
+    <div class="controls">
+        <div>
+            <button class="btn" style="background: #e5e7eb; color: #374151;" onclick="toggleHint()">💡 Підказка</button>
+            <div id="hintText" class="hint-box"></div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-run" onclick="runCode()">▶ Запустити</button>
+            <button class="btn btn-next" id="nextBtn" onclick="nextTask()">Наступний ➡</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- БАЗА ДАНИХ УРОКІВ ---
+    const tasks = [
+        {
+            title: "Створення змінної",
+            theory: `
+                <div class="theory-title">📦 Що таке змінна?</div>
+                <p class="theory-text">Змінна — це як коробка з назвою, в яку ми кладемо дані. Команда <code>x = 10</code> створює коробку <b>x</b> і кладе туди число <b>10</b>.</p>
+                <div class="example-box">
+                    score = 100<br>
+                    print(score)
+                </div>
+            `,
+            desc: "Створи змінну <code>score</code>, поклади в неї число <b>100</b> і виведи її на екран за допомогою print.",
+            hint: "score = 100\nprint(score)",
+            check: (code, output) => code.includes("score") && output.includes("100")
+        },
+        {
+            title: "Текст у змінній",
+            theory: `
+                <div class="theory-title">📜 Рядки (String)</div>
+                <p class="theory-text">Змінні можуть зберігати не лише числа, а й текст. Текст завжди має бути в лапках.</p>
+                <div class="example-box">
+                    name = "Олег"<br>
+                    print(name)
+                </div>
+            `,
+            desc: "Створи змінну <code>user</code>, збережи в ній своє ім'я (в лапках!) і виведи змінну.",
+            hint: "user = \"Твоє Ім'я\"\nprint(user)",
+            check: (code, output) => code.includes("user") && (code.includes('"') || code.includes("'")) && output.length > 1
+        },
+        {
+            title: "Сума змінних",
+            theory: `
+                <div class="theory-title">➕ Математика</div>
+                <p class="theory-text">Змінні можна додавати між собою, як звичайні числа.</p>
+                <div class="example-box">
+                    a = 5<br>
+                    b = 3<br>
+                    print(a + b)  # Виведе 8
+                </div>
+            `,
+            desc: "Створи змінні: <code>apples = 15</code> та <code>pears = 10</code>. Виведи їхню суму.",
+            hint: "apples = 15\npears = 10\nprint(apples + pears)",
+            check: (code, output) => code.includes("apples") && code.includes("pears") && output.includes("25")
+        },
+        {
+            title: "Оновлення даних",
+            theory: `
+                <div class="theory-title">🔄 Перезапис</div>
+                <p class="theory-text">Ми можемо змінювати вміст коробки. Нове значення просто замінює старе.</p>
+                <div class="example-box">
+                    x = 5<br>
+                    x = 10  # Тепер тут 10<br>
+                    print(x)
+                </div>
+            `,
+            desc: "Створи змінну <code>health = 100</code>. На наступному рядку зміни її на <b>80</b>. Виведи health.",
+            hint: "health = 100\nhealth = 80\nprint(health)",
+            check: (code, output) => code.includes("health") && output.includes("80")
+        },
+        {
+            title: "Вивід з текстом",
+            theory: `
+                <div class="theory-title">🔗 Красивий вивід</div>
+                <p class="theory-text">Можна виводити пояснювальний текст і значення змінної через кому.</p>
+                <div class="example-box">
+                    age = 15<br>
+                    print("Мені", age, "років")
+                </div>
+            `,
+            desc: "Створи змінну <code>level = 5</code>. Виведи фразу: <b>Поточний рівень: 5</b>",
+            hint: "level = 5\nprint(\"Поточний рівень:\", level)",
+            check: (code, output) => code.includes("level") && output.includes("Поточний рівень: 5")
+        },
+        {
+            title: "Площа",
+            theory: `
+                <div class="theory-title">📐 Множення</div>
+                <p class="theory-text">Змінні ідеальні для формул. Множення в Python — це зірочка <code>*</code>.</p>
+            `,
+            desc: "Створи змінні <code>a = 4</code> та <code>b = 7</code>. Обчисли площу (a * b) і виведи результат.",
+            hint: "a = 4\nb = 7\nprint(a * b)",
+            check: (code, output) => code.includes("*") && output.includes("28")
+        },
+        {
+            title: "Степінь",
+            theory: `
+                <div class="theory-title">🚀 Степінь</div>
+                <p class="theory-text">Щоб піднести число до степеня (наприклад, "у квадраті" або "у кубі"), використовуй дві зірочки <code>**</code>.</p>
+                <div class="example-box">
+                    print(2 ** 3)  # Це 2 * 2 * 2 = 8
+                </div>
+            `,
+            desc: "Створи змінну <code>n = 3</code>. Виведи <b>n</b> у 3-му степені (куб).",
+            hint: "n = 3\nprint(n ** 3)",
+            check: (code, output) => code.includes("**") && output.includes("27")
+        },
+        {
+            title: "Швидкий обмін",
+            theory: `
+                <div class="theory-title">✨ Магія Python</div>
+                <p class="theory-text">В Python можна поміняти значення двох змінних місцями в один рядок!</p>
+                <div class="example-box">
+                    a, b = b, a
+                </div>
+            `,
+            desc: "Є <code>x = 10</code> та <code>y = 20</code>. Поміняй їх місцями (так, щоб x стало 20) і виведи <code>x</code>.",
+            hint: "x = 10\ny = 20\nx, y = y, x\nprint(x)",
+            check: (code, output) => code.includes("x, y") || code.includes("x,y") && output.includes("20")
+        },
+        {
+            title: "🏆 ФІНАЛ",
+            theory: `
+                <div class="theory-title">🎓 Іспит</div>
+                <p class="theory-text">Виріши задачу: <br>
+                1. Створи змінну <code>celsius = 25</code>.<br>
+                2. Переведи у Фаренгейти за формулою: <code>celsius * 1.8 + 32</code>.<br>
+                3. Виведи результат.</p>
+            `,
+            desc: "Напиши повний код розрахунку температури.",
+            hint: "c = 25\nf = c * 1.8 + 32\nprint(f)",
+            check: (code, output) => output.includes("77")
+        }
+    ];
+
+    let currentIdx = 0;
+
+    // --- ЛОГІКА ---
+    function init() {
+        renderNav();
+        loadTask(0);
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.target.tagName === 'TEXTAREA' && e.key === 'Tab') {
+                e.preventDefault();
+                let ta = e.target;
+                let start = ta.selectionStart;
+                let end = ta.selectionEnd;
+                ta.value = ta.value.substring(0, start) + "    " + ta.value.substring(end);
+                ta.selectionStart = ta.selectionEnd = start + 4;
+            }
+        });
+    }
+
+    function renderNav() {
+        const list = document.getElementById('navList');
+        list.innerHTML = tasks.map((t, i) => `
+            <button class="nav-btn" id="nav-${i}" onclick="loadTask(${i})">
+                <span>${i+1}. ${t.title}</span>
+            </button>
+        `).join('');
+    }
+
+    function loadTask(index) {
+        currentIdx = index;
+        const task = tasks[index];
+        const isFinal = index === tasks.length - 1;
+
+        document.getElementById('taskTitle').innerText = isFinal ? "🏆 Фінальний іспит" : `Рівень 2: ${task.title}`;
+        document.getElementById('progressBar').style.width = `${((index) / tasks.length) * 100}%`;
+
+        const html = `
+            <div class="task-card active">
+                <div class="theory-block">
+                    ${task.theory}
+                </div>
+                <p style="margin-bottom: 15px; font-size: 16px;"><strong>Завдання:</strong> ${task.desc}</p>
+                
+                <div class="workspace">
+                    <div class="panel">
+                        <div class="panel-label">Редактор коду (main.py)</div>
+                        <textarea id="codeEditor" spellcheck="false" placeholder="Пиши код тут..."></textarea>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-label">Термінал</div>
+                        <div class="terminal" id="terminal">
+                            <div class="terminal-log">>>> Натисни "Запустити"...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('contentArea').innerHTML = html;
+
+        document.getElementById('nextBtn').classList.remove('unlocked');
+        document.getElementById('hintText').style.display = 'none';
+        document.getElementById('hintText').innerText = task.hint;
+
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`nav-${index}`).classList.add('active');
+    }
+
+    // --- СИМУЛЯТОР PYTHON (Run logic) ---
+    function runCode() {
+        const code = document.getElementById('codeEditor').value;
+        const terminal = document.getElementById('terminal');
+        const task = tasks[currentIdx];
+
+        terminal.innerHTML = "";
+        
+        if (!code.trim()) {
+            terminal.innerHTML = "<span class='terminal-error'>Файл пустий!</span>";
+            return;
+        }
+
+        let fullOutput = "";
+
+        // Проста симуляція виконання
+        // Ми використовуємо JS eval(), але адаптуємо синтаксис Python (прибираємо print)
+        try {
+            const lines = code.split('\n');
+            lines.forEach(line => {
+                line = line.trim();
+                if(!line || line.startsWith("#")) return;
+
+                if (line.startsWith("print")) {
+                    // Витягуємо вміст дужок print(...)
+                    let content = line.substring(6, line.length - 1);
+                    
+                    // Хак для обробки коми в print (напр print("A", 10))
+                    // Ми замінюємо кому на + " " +, щоб JS склеїв це як рядки
+                    // Але обережно, щоб не замінити кому всередині лапок
+                    // Для простих задач просто спробуємо виконати eval
+                    // Примітка: в реальному JS `console.log("A", 5)` працює, але ми хочемо повернути рядок.
+                    
+                    try {
+                        // Спроба виконати як JS масив і з'єднати
+                        // Python: print(a, b) -> JS: [a, b].join(" ")
+                        // Нам треба перетворити аргументи print у масив
+                        let jsExpression = `[${content}].join(" ")`;
+                        
+                        // Але змінні повинні бути визначені. 
+                        // Тому ми виконуємо весь блок коду як один великий eval context
+                    } catch(e) {}
+                }
+            });
+
+            // Більш надійний метод для статичного сайту без бекенду:
+            // Ми переписуємо print() на функцію-логер і виконуємо весь код
+            
+            let log = [];
+            const print = (...args) => {
+                let line = args.join(" ");
+                log.push(line);
+                terminal.innerHTML += `<div>${line}</div>`;
+                fullOutput += line + " ";
+            };
+
+            // Функції-заглушки для Python
+            const int = (n) => parseInt(n);
+            const float = (n) => parseFloat(n);
+            
+            // Транспіляція Python -> JS (дуже базова)
+            // 1. Прибрати print(...) і замінити на виклик нашої функції print
+            // 2. Змінні в JS вимагають let/var, але якщо ми в eval без 'use strict', можна і так.
+            // 3. 2**3 -> Math.pow(2,3) або в нових браузерах 2**3 працює!
+            
+            // Проблема: в Python `a, b = b, a` працює, в JS - ні (треба [a,b]=[b,a]).
+            // Для задачі 8 ми зробимо виняток перевірки або спробуємо regex replace.
+            
+            let jsCode = code
+                .replace(/print\s*\(/g, 'print(')
+                // Хак для обміну змінних (Task 8 specific)
+                .replace(/(\w+)\s*,\s*(\w+)\s*=\s*(\w+)\s*,\s*(\w+)/g, '[$1, $2] = [$3, $4]');
+
+            eval(jsCode);
+
+            // Перевірка
+            if (task.check(code, fullOutput)) {
+                terminal.innerHTML += "<br><div style='color: var(--success)'>✨ Чудово! Тест пройдено.</div>";
+                document.getElementById('nextBtn').classList.add('unlocked');
+                document.getElementById(`nav-${currentIdx}`).classList.add('completed');
+                
+                if (currentIdx === tasks.length - 1) {
+                    fireConfetti();
+                }
+            } else {
+                terminal.innerHTML += "<br><div class='terminal-error'>❌ Щось не так. Перевір умову.</div>";
+            }
+
+        } catch (e) {
+            terminal.innerHTML += `<br><div class='terminal-error'>Помилка: ${e.message}</div>`;
+        }
+    }
+
+    function toggleHint() {
+        const h = document.getElementById('hintText');
+        h.style.display = h.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function nextTask() {
+        if (currentIdx < tasks.length - 1) loadTask(currentIdx + 1);
+        else { alert("Рівень пройдено!"); fireConfetti(); }
+    }
+
+    function fireConfetti() {
+        var duration = 3 * 1000;
+        var animationEnd = Date.now() + duration;
+        var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+        function random(min, max) { return Math.random() * (max - min) + min; }
+        var interval = setInterval(function() {
+            var timeLeft = animationEnd - Date.now();
+            if (timeLeft <= 0) return clearInterval(interval);
+            var particleCount = 50 * (timeLeft / duration);
+            confetti(Object.assign({}, defaults, { particleCount, origin: { x: random(0.1, 0.3), y: Math.random() - 0.2 } }));
+            confetti(Object.assign({}, defaults, { particleCount, origin: { x: random(0.7, 0.9), y: Math.random() - 0.2 } }));
+        }, 250);
+    }
+
+    // Старт
+    init();
+
+</script>
+</body>
+</html>

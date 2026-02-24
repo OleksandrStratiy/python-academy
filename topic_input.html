@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Course: Введення даних</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #f5f7fa;
+            --sidebar-bg: #ffffff;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --border: #e5e7eb;
+            --code-bg: #1e1e1e;
+            --code-text: #e5e7eb;
+            --success: #10b981;
+            --hint-bg: #fffbeb;
+            --hint-border: #fcd34d;
+            --hint-text: #92400e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Inter", sans-serif; }
+
+        body { display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 280px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .logo-area { padding: 25px; border-bottom: 1px solid var(--border); }
+        .logo-area h2 { font-size: 20px; font-weight: 800; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+
+        .nav-list { flex: 1; overflow-y: auto; padding: 20px 15px; }
+
+        .nav-btn {
+            width: 100%; text-align: left; padding: 12px 15px;
+            margin-bottom: 5px; border-radius: 8px; border: none; background: none;
+            cursor: pointer; color: #4b5563; font-size: 14px; font-weight: 500;
+            transition: 0.2s; display: flex; justify-content: space-between;
+        }
+        .nav-btn:hover { background: #f3f4f6; color: var(--accent); }
+        .nav-btn.active { background: #eff6ff; color: var(--accent); font-weight: 700; }
+        .nav-btn.completed::after { content: "✓"; color: var(--success); font-weight: bold; }
+
+        .sidebar-footer { padding: 15px; border-top: 1px solid var(--border); background: #f9fafb; }
+        .btn-home {
+            text-decoration: none; display: flex; align-items: center; justify-content: center;
+            width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text); font-weight: 600; font-size: 14px; background: white; transition: 0.2s;
+        }
+        .btn-home:hover { background: #e5e7eb; }
+
+        /* --- MAIN CONTENT --- */
+        .main { flex: 1; padding: 40px; display: flex; flex-direction: column; overflow-y: auto; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+        .header { margin-bottom: 25px; }
+        .header h1 { font-size: 28px; font-weight: 800; margin-bottom: 10px; }
+        
+        .progress-container { width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+        .progress-bar { height: 100%; background: var(--success); width: 0%; transition: 0.5s ease; }
+
+        /* CARD & EDITOR */
+        .task-card { display: none; animation: fadeIn 0.4s ease; height: 100%; display: flex; flex-direction: column; }
+        .task-card.active { display: flex; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .theory-block {
+            background: #ffffff; border: 1px solid var(--border); border-radius: 12px;
+            padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .theory-title { color: var(--accent); font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .theory-text { line-height: 1.6; color: #374151; }
+        .theory-text code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; color: #db2777; font-family: 'Fira Code', monospace; font-size: 0.9em; }
+
+        /* Workspace Grid */
+        .workspace { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex: 1; min-height: 350px; }
+        
+        .panel { display: flex; flex-direction: column; }
+        .panel-label { font-size: 12px; font-weight: 700; color: #9ca3af; text-transform: uppercase; margin-bottom: 8px; }
+
+        textarea {
+            flex: 1; background: var(--code-bg); color: var(--code-text); border: none; border-radius: 12px;
+            padding: 20px; font-family: 'Fira Code', monospace; font-size: 14px; line-height: 1.5;
+            resize: none; outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .terminal {
+            flex: 1; background: #0f172a; border-radius: 12px; padding: 20px;
+            font-family: 'Fira Code', monospace; font-size: 14px; color: #22c55e;
+            overflow-y: auto; border: 1px solid #1e293b;
+        }
+        .terminal-log { color: #6b7280; font-style: italic; }
+        .terminal-input { color: #fbbf24; font-weight: bold; }
+        .terminal-error { color: #ef4444; }
+
+        /* Controls */
+        .controls { margin-top: 20px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .btn { padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+        .btn-run { background: var(--accent); color: white; }
+        .btn-run:hover { background: var(--accent-hover); }
+        .btn-next { background: var(--success); color: white; opacity: 0.5; pointer-events: none; }
+        .btn-next.unlocked { opacity: 1; pointer-events: auto; animation: pulse 2s infinite; }
+        
+        .hint-box { margin-top: 10px; padding: 12px; background: var(--hint-bg); border: 1px solid var(--hint-border); color: var(--hint-text); border-radius: 8px; font-size: 13px; display: none; font-family: 'Fira Code', monospace; }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            body { flex-direction: column; overflow: auto; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+            .nav-list { display: none; }
+            .workspace { grid-template-columns: 1fr; height: auto; }
+            textarea { height: 200px; }
+            .terminal { height: 150px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo-area">
+        <h2>🐍 Python Pro</h2>
+    </div>
+    <div class="nav-list" id="navList">
+        </div>
+    <div class="sidebar-footer">
+        <a href="index.html" class="btn-home">🏠 На головну</a>
+    </div>
+</div>
+
+<div class="main">
+    <div class="header">
+        <h1 id="taskTitle">Введення даних</h1>
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+    </div>
+
+    <div id="contentArea" style="flex: 1; display: flex; flex-direction: column;">
+        </div>
+
+    <div class="controls">
+        <div>
+            <button class="btn" style="background: #e5e7eb; color: #374151;" onclick="toggleHint()">💡 Підказка</button>
+            <div id="hintText" class="hint-box"></div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-run" onclick="runCode()">▶ Запустити</button>
+            <button class="btn btn-next" id="nextBtn" onclick="nextTask()">Наступний ➡</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- ДАНІ УРОКІВ (ВАШ ТЕКСТ) ---
+    const tasks = [
+        {
+            title: "Знайомство",
+            theory: `
+                <div class="theory-title">👋 Функція input()</div>
+                <p class="theory-text">Команда <code>input("Питання")</code> виводить питання і зупиняє програму, чекаючи, поки користувач щось напише.</p>
+                <div class="theory-text" style="margin-top:10px">Результат введення завжди є <strong>текстом</strong> (рядок).</div>
+            `,
+            desc: "Створи програму, яка запитає: <b>Як тебе звати?</b>, а потім виведе: <b>Привіт, [Ім'я]</b>.",
+            hint: "name = input(\"Як тебе звати? \")\nprint(\"Привіт,\", name)",
+            check: (code, output, inputLog) => inputLog.length > 0 && output.includes("Привіт")
+        },
+        {
+            title: "Подвоєння (int)",
+            theory: `
+                <div class="theory-title">🔢 Перетворення в число</div>
+                <p class="theory-text"><code>input()</code> повертає текст. "10" + "10" буде "1010". <br>Щоб рахувати математику, треба перетворити текст у число командою <code>int()</code>.</p>
+                <div class="theory-text"><code>num = int(input("Число: "))</code></div>
+            `,
+            desc: "Запитай число і виведи його, помножене на 2.",
+            hint: "n = int(input(\"Число: \"))\nprint(n * 2)",
+            check: (code, output, inputLog) => inputLog.length > 0 && output.trim() == (parseInt(inputLog[0]) * 2).toString()
+        },
+        {
+            title: "Смаки",
+            theory: `
+                <div class="theory-title">🍕 Кілька змінних</div>
+                <p class="theory-text">Ти можеш створювати скільки завгодно змінних для різних питань.</p>
+            `,
+            desc: "Запитай улюблену страву та напій (у дві різні змінні). Виведи їх разом в одному реченні.",
+            hint: "f = input(\"Страва: \")\nd = input(\"Напій: \")\nprint(\"Люблю\", f, \"та\", d)",
+            check: (code, output, inputLog) => inputLog.length >= 2
+        },
+        {
+            title: "Машина часу",
+            theory: `
+                <div class="theory-title">⏳ Математика з input</div>
+                <p class="theory-text">Отримавши число через <code>int(input())</code>, ми можемо віднімати, додавати та множити його.</p>
+            `,
+            desc: "Запитай рік народження. Розрахуй і виведи, скільки років буде користувачу у 2050 році.",
+            hint: "year = int(input(\"Рік: \"))\nprint(2050 - year)",
+            check: (code, output, inputLog) => inputLog.length > 0 && output.includes((2050 - parseInt(inputLog[0])).toString())
+        },
+        {
+            title: "Зріст (float)",
+            theory: `
+                <div class="theory-title">📏 Дробові числа</div>
+                <p class="theory-text">Для цілих чисел — <code>int()</code>.<br>Для чисел з крапкою (1.5, 3.14) — <code>float()</code>.</p>
+            `,
+            desc: "Запитай зріст у метрах (напр. 1.8). Переведи його в сантиметри (* 100) і виведи.",
+            hint: "h = float(input(\"Зріст: \"))\nprint(h * 100)",
+            check: (code, output, inputLog) => inputLog.length > 0 && output.includes((parseFloat(inputLog[0]) * 100).toString())
+        },
+        {
+            title: "Логін (sep)",
+            theory: `
+                <div class="theory-title">🔗 Sep (Separator)</div>
+                <p class="theory-text">В <code>print</code> можна додати <code>sep=":"</code>, щоб з'єднати слова не пробілом, а іншим знаком.</p>
+            `,
+            desc: "Запитай Логін і Пароль. Виведи їх через двокрапку.",
+            hint: "l = input()\np = input()\nprint(l, p, sep=\":\")",
+            check: (code, output, inputLog) => code.includes("sep=") && inputLog.length >= 2
+        },
+        {
+            title: "Квадрат",
+            theory: `
+                <div class="theory-title">🔲 Автоматизація</div>
+                <p class="theory-text">Програми існують, щоб рахувати за нас.</p>
+            `,
+            desc: "Запитай сторону квадрата (int). Виведи його периметр (сторона * 4).",
+            hint: "a = int(input(\"Сторона: \"))\nprint(a * 4)",
+            check: (code, output, inputLog) => inputLog.length > 0 && output.trim() == (parseInt(inputLog[0]) * 4).toString()
+        },
+        {
+            title: "Ехо (str * int)",
+            theory: `
+                <div class="theory-title">📢 Множення тексту</div>
+                <p class="theory-text">У Python можна множити текст на число! <code>'А' * 3</code> дасть <code>'ААА'</code>.</p>
+            `,
+            desc: "Запитай слово і число N. Виведи це слово N разів.",
+            hint: "w = input()\nn = int(input())\nprint(w * n)",
+            check: (code, output, inputLog) => inputLog.length >= 2
+        },
+        {
+            title: "🏆 ФІНАЛ",
+            theory: `
+                <div class="theory-title">🎓 Підсумкова робота</div>
+                <p class="theory-text">Напиши програму "Магазин чек".<br>
+                1. Запитай ціну товару (int).<br>
+                2. Запитай кількість (int).<br>
+                3. Виведи: "До сплати: [сума]"</p>
+            `,
+            desc: "Код має працювати коректно для будь-яких чисел.",
+            hint: "price = int(input())\nqty = int(input())\nprint(\"До сплати:\", price * qty)",
+            check: (code, output, inputLog) => inputLog.length >= 2 && output.includes((parseInt(inputLog[0]) * parseInt(inputLog[1])).toString())
+        }
+    ];
+
+    let currentIdx = 0;
+
+    // --- ЛОГІКА ---
+    function init() {
+        renderNav();
+        loadTask(0);
+        
+        // Tab support
+        document.addEventListener('keydown', function(e) {
+            if (e.target.tagName === 'TEXTAREA' && e.key === 'Tab') {
+                e.preventDefault();
+                let ta = e.target;
+                let start = ta.selectionStart;
+                let end = ta.selectionEnd;
+                ta.value = ta.value.substring(0, start) + "    " + ta.value.substring(end);
+                ta.selectionStart = ta.selectionEnd = start + 4;
+            }
+        });
+    }
+
+    function renderNav() {
+        const list = document.getElementById('navList');
+        list.innerHTML = tasks.map((t, i) => `
+            <button class="nav-btn" id="nav-${i}" onclick="loadTask(${i})">
+                <span>${i+1}. ${t.title}</span>
+            </button>
+        `).join('');
+    }
+
+    function loadTask(index) {
+        currentIdx = index;
+        const task = tasks[index];
+        const isFinal = index === tasks.length - 1;
+
+        document.getElementById('taskTitle').innerText = isFinal ? "🏆 Фінальний іспит" : `Рівень 3: ${task.title}`;
+        document.getElementById('progressBar').style.width = `${((index) / tasks.length) * 100}%`;
+
+        const html = `
+            <div class="task-card active">
+                <div class="theory-block">
+                    ${task.theory}
+                </div>
+                <p style="margin-bottom: 15px; font-size: 16px;"><strong>Завдання:</strong> ${task.desc}</p>
+                
+                <div class="workspace">
+                    <div class="panel">
+                        <div class="panel-label">Редактор коду (main.py)</div>
+                        <textarea id="codeEditor" spellcheck="false" placeholder="Пиши код тут..."></textarea>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-label">Термінал</div>
+                        <div class="terminal" id="terminal">
+                            <div class="terminal-log">>>> Натисни "Запустити", щоб почати...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('contentArea').innerHTML = html;
+
+        document.getElementById('nextBtn').classList.remove('unlocked');
+        document.getElementById('hintText').style.display = 'none';
+        document.getElementById('hintText').innerText = task.hint;
+
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`nav-${index}`).classList.add('active');
+    }
+
+    // --- ГОЛОВНА ФУНКЦІЯ ВИКОНАННЯ ---
+    function runCode() {
+        const code = document.getElementById('codeEditor').value;
+        const terminal = document.getElementById('terminal');
+        const task = tasks[currentIdx];
+
+        terminal.innerHTML = "";
+        
+        if (!code.trim()) {
+            terminal.innerHTML = "<span class='terminal-error'>Файл пустий!</span>";
+            return;
+        }
+
+        // Лог введених даних користувачем для перевірки
+        let userInputsLog = [];
+        let fullOutput = "";
+
+        // Створюємо "пісочницю" для імітації Python
+        // Ми підміняємо функції print та input
+        try {
+            // Функція-обгортка для print
+            const print = (...args) => {
+                // Обробка sep (дуже спрощена, бо в JS це складно через eval)
+                // Але ми просто з'єднуємо аргументи пробілом
+                // Якщо у коді є sep=, ми це побачимо у string parsing, але тут просто джойнимо
+                let line = args.join(" "); 
+                
+                // Перевірка на sep у самому коді (хак, бо arguments в print не мають імен)
+                // Для симуляції ми ігноруємо реалізацію sep в JS рантаймі, 
+                // але перевіряємо наявність "sep=" у тексті коду завдання 6
+                
+                terminal.innerHTML += `<div>${line}</div>`;
+                fullOutput += line + "\n";
+            };
+
+            // Функція-обгортка для input (Викликає браузерний prompt)
+            const input = (msg) => {
+                msg = msg || ""; // Якщо питання немає
+                // Імітуємо вивід питання в термінал
+                if(msg) terminal.innerHTML += `<div>${msg}</div>`;
+                
+                // Браузерне вікно введення
+                let val = prompt(msg.replace(/:$/, '') || "Введіть значення:");
+                
+                if (val === null) val = ""; // Якщо нажали скасувати
+                
+                terminal.innerHTML += `<div class='terminal-input'>${val}</div>`;
+                userInputsLog.push(val);
+                return val; // input завжди повертає рядок
+            };
+
+            // Функції перетворення типів
+            const int = (n) => parseInt(n);
+            const float = (n) => parseFloat(n);
+
+            // Виконання коду (EVAL - тільки для клієнтського навчання!)
+            // Ми трансформуємо Python-код у JS-сумісний (дуже грубо)
+            // АБО виконуємо це у середовищі з підміненими функціями.
+            // Оскільки синтаксис Python input() і JS майже схожий у викликах функцій,
+            // спробуємо виконати це як JS код, де input визначено вище.
+            
+            // Але Python синтаксис відрізняється (напр. немає ; , print це функція тощо).
+            // Тому ми використовуємо простий парсер або eval адаптованого коду.
+            
+            // ДЛЯ ПРОСТОТИ І НАДІЙНОСТІ НА ЦЬОМУ РІВНІ:
+            // Ми замінюємо `input` на `prompt` у рядку коду, і запускаємо eval.
+            
+            // 1. Адаптація коду під JS eval
+            let jsCode = code
+                .replace(/print\s*\(/g, 'print(') // Нормалізація
+                .replace(/input\s*\(/g, 'input(');
+
+            // Оскільки це симулятор, ми просто виконуємо рядки. 
+            // Але eval("int('5')") в JS не працює без функції int().
+            // Функції визначені вище (print, input, int, float).
+            
+            // Увага: Python використовує `and`, `or`, `#`. JS - `&&`, `||`, `//`.
+            // Для простих задач на input/print/math це працюватиме, якщо ми почистимо коменти.
+            jsCode = jsCode.replace(/#.*/g, ''); // Видалити коменти
+            
+            // Виконуємо код
+            eval(jsCode);
+
+            // --- ПЕРЕВІРКА ---
+            if (task.check(code, fullOutput, userInputsLog)) {
+                terminal.innerHTML += "<br><div style='color: var(--success)'>✨ Чудово! Тест пройдено.</div>";
+                document.getElementById('nextBtn').classList.add('unlocked');
+                document.getElementById(`nav-${currentIdx}`).classList.add('completed');
+                
+                if (currentIdx === tasks.length - 1) {
+                    fireConfetti();
+                }
+            } else {
+                terminal.innerHTML += "<br><div class='terminal-error'>❌ Результат не зійшовся. Перевір умову.</div>";
+            }
+
+        } catch (e) {
+            terminal.innerHTML += `<br><div class='terminal-error'>Помилка у коді: ${e.message}</div>`;
+            terminal.innerHTML += `<div class='terminal-log' style='font-size:12px'>Порада: перевір дужки та лапки.</div>`;
+        }
+    }
+
+    function toggleHint() {
+        const h = document.getElementById('hintText');
+        h.style.display = h.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function nextTask() {
+        if (currentIdx < tasks.length - 1) loadTask(currentIdx + 1);
+        else { alert("Вітаю! Ти пройшов тему Input!"); fireConfetti(); }
+    }
+
+    function fireConfetti() {
+        var duration = 3 * 1000;
+        var animationEnd = Date.now() + duration;
+        var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+        function random(min, max) { return Math.random() * (max - min) + min; }
+        var interval = setInterval(function() {
+            var timeLeft = animationEnd - Date.now();
+            if (timeLeft <= 0) return clearInterval(interval);
+            var particleCount = 50 * (timeLeft / duration);
+            confetti(Object.assign({}, defaults, { particleCount, origin: { x: random(0.1, 0.3), y: Math.random() - 0.2 } }));
+            confetti(Object.assign({}, defaults, { particleCount, origin: { x: random(0.7, 0.9), y: Math.random() - 0.2 } }));
+        }, 250);
+    }
+
+    // Старт
+    init();
+
+</script>
+</body>
+</html>
