@@ -12,14 +12,64 @@
 (function () {
   "use strict";
 
-  // ===== Supabase connection =====
-const SUPABASE_URL = "https://jxupcqlidaozazbwxpxp.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_joFcOKBLVWXy3SVSkTHuXg_ZpezeivF";
+    // ===========================
+  // Supabase (Auth + Cloud Save)
+  // ===========================
+  // ВАЖЛИВО: тут має бути твій SUPABASE_URL і твій sb_publishable ключ
+  const SUPABASE_URL = "https://jxupcqlidaozazbwxpxp.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_joFcOKBLVWXy3SVSkTHuXg_ZpezeivF";
 
-const supa = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
+  const supa = (window.supabase && SUPABASE_URL.includes("supabase.co"))
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  async function signInWithGoogle() {
+    if (!supa) throw new Error("Supabase client not configured");
+    const redirectTo = window.location.origin + window.location.pathname;
+
+    const { error } = await supa.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+
+    if (error) throw error;
+  }
+
+  async function getSessionUser() {
+    if (!supa) return null;
+    const { data: { session } } = await supa.auth.getSession();
+    return session?.user || null;
+  }
+
+  async function cloudLoadState(userId) {
+    const { data, error } = await supa
+      .from("progress")
+      .select("state")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.state ?? null;
+  }
+
+  async function cloudSaveState(userId, fullState) {
+    const { error } = await supa
+      .from("progress")
+      .upsert({ user_id: userId, state: fullState, updated_at: new Date().toISOString() });
+    if (error) throw error;
+  }
+
+  let cloudTimer = null;
+  function scheduleCloudSync(getStateFn) {
+    if (!supa) return;
+    clearTimeout(cloudTimer);
+    cloudTimer = setTimeout(async () => {
+      try {
+        const user = await getSessionUser();
+        if (!user) return;
+        await cloudSaveState(user.id, getStateFn());
+      } catch {}
+    }, 900);
+  }
   
 
   // ===========================
@@ -140,9 +190,11 @@ const supa = window.supabase.createClient(
 
   let state = load() || structuredClone(defaultState);
 
-  function save() {
-    localStorage.setItem(KEY, JSON.stringify(state));
-  }
+function save() {
+  localStorage.setItem(KEY, JSON.stringify(state));
+  // онлайн-синхронізація (тихо, з паузою)
+  scheduleCloudSync(() => state);
+}
 
   function resetAll() {
     localStorage.removeItem(KEY);
@@ -1555,16 +1607,27 @@ const supa = window.supabase.createClient(
       renderByRoute();
     });
 
-    on($("btnLogout"), "click", () => {
-      if (!confirm("Вийти з акаунту?")) return;
-      state.user = null;
-      save();
-      closeSettings();
-      showAuth();
-      toast("👋 Вийшов");
-      goto("/home");
-      renderByRoute();
-    });
+on($("btnLogout"), "click", async () => {
+  if (!confirm("Вийти з акаунту?")) return;
+
+  try { if (supa) await supa.auth.signOut(); } catch {}
+
+  state.user = null;
+  save();
+  closeSettings();
+  showAuth();
+  toast("👋 Вийшов");
+  goto("/home");
+  renderByRoute();
+});
+
+on($("btnGoogle"), "click", async () => {
+  try {
+    await signInWithGoogle();
+  } catch {
+    toast("❌ Не вдалося увійти через Google");
+  }
+});
 
     window.addEventListener("hashchange", renderByRoute);
   }
@@ -1572,8 +1635,48 @@ const supa = window.supabase.createClient(
   // ===========================
   // Start
   // ===========================
-  bindEvents();
-  typingTick();
-  applyTheme(state.settings.theme || "dark");
+bindEvents();
+typingTick();
+applyTheme(state.settings.theme || "dark");
+
+(async () => {
+  // якщо користувач уже увійшов через Google — підтягуємо прогрес
+  if (supa) {
+    const user = await getSessionUser();
+    if (user) {
+      try {
+        const cloud = await cloudLoadState(user.id);
+        if (cloud) {
+          state = cloud;
+          save();
+        } else {
+          // перший вхід: якщо локально вже є user — заливаємо, якщо ні — створимо
+          if (!state.user) {
+            const name =
+              user.user_metadata?.full_name ||
+              user.email?.split("@")?.[0] ||
+              "User";
+
+            state.user = {
+              name,
+              xp: 0,
+              streak: 1,
+              lastDay: null,
+              completed: {},
+              attempts: {},
+              spoiled: {},
+              drafts: {},
+            };
+          }
+          save();
+          await cloudSaveState(user.id, state);
+        }
+      } catch {
+        // якщо щось з хмарою не так — просто працюємо локально
+      }
+    }
+  }
+
   renderByRoute();
+})();
 })();
