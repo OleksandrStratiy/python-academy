@@ -826,31 +826,44 @@ html[data-theme="light"] .solution-pre{
 }
 .btn-run:hover{ filter: brightness(1.05); box-shadow: 0 0 18px rgba(14,165,233,.25); }
 
-.code-wrap{
-  display:grid;
-  grid-template-columns: 48px 1fr;
+/* Контейнер редактора (без grid колонок) */
+.code-wrap {
+  display: block; /* Замість grid, бо CodeMirror сам робить колонку з цифрами */
+  position: relative;
   min-height: 360px;
 }
 
-/* ==========================
-   CODEMIRROR EDITOR STYLES
-========================== */
+/* Сам редактор CodeMirror */
 .CodeMirror {
+  position: absolute; /* Розтягуємо на весь .code-wrap */
+  top: 0; left: 0; right: 0; bottom: 0;
   height: 100%;
-  width: 100%;
   font-family: var(--mono);
-  font-size: 15px;
-  background: transparent !important; /* щоб працював твій фон */
+  font-size: 14px; /* Повернув 14px, як було в твоєму дизайні */
+  background: transparent !important; /* Щоб зберігся твій гарний фон */
   border-bottom-left-radius: 20px;
   border-bottom-right-radius: 20px;
   color: rgba(226,232,240,.95);
 }
+
+/* Колір бокової панелі з номерами рядків */
 .CodeMirror-gutters {
   background: rgba(0,0,0,0.15) !important;
   border-right: 1px solid var(--border) !important;
+  padding-right: 5px; /* Трохи простору біля цифр */
 }
+
+/* Колір самих цифр */
 .CodeMirror-linenumber {
   color: rgba(148,163,184,.6) !important;
+}
+
+/* Світла тема */
+html[data-theme="light"] .CodeMirror {
+  color: rgba(15,23,42,.92);
+}
+html[data-theme="light"] .CodeMirror-gutters {
+  background: rgba(15,23,42,.06) !important;
 }
 /* Світла тема */
 html[data-theme="light"] .CodeMirror {
