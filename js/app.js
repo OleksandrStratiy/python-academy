@@ -1757,8 +1757,7 @@ let myCodeMirror = null;
     $("btnNext").classList.remove("unlocked");
     if (completionState(id)) $("btnNext").classList.add("unlocked");
 
-    // RUN
-    $("btnRun").onclick = () => {
+
 // RUN
     $("btnRun").onclick = async () => {
       const code = myCodeMirror.getValue();
