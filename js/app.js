@@ -242,6 +242,7 @@
 
     const icon = $("uiThemeIcon");
     if (icon) icon.className = (t === "light") ? "ri-moon-line" : "ri-sun-line";
+      if (myCodeMirror) myCodeMirror.setOption("theme", t === "light" ? "default" : "dracula");
   }
 
   function toggleTheme() {
@@ -855,18 +856,7 @@ async function renderLeaderboard() {
     renderSidebarHome();
   }
 
-  // ===========================
-  // Gutter
-  // ===========================
-  function updateGutter() {
-    const ta = $("codeEditor");
-    const gutter = $("gutter");
-    if (!ta || !gutter) return;
-    const lines = ta.value.split("\n").length;
-    let html = "";
-    for (let i = 1; i <= lines; i++) html += `<div>${i}</div>`;
-    gutter.innerHTML = html;
-  }
+
 
   // ===========================
   // MiniPy + Smart Checker
@@ -1538,7 +1528,7 @@ function openLevelPicker(courseId, onDone) {
       setTimeout(typingTick, 20);
     }
   }
-
+let myCodeMirror = null;
   // ===========================
   // Lesson render
   // ===========================
@@ -1643,16 +1633,35 @@ function openLevelPicker(courseId, onDone) {
     }
 
     // editor / terminal init
-    const editor = $("codeEditor");
+    // ===========================
+    // EDITOR INIT (CodeMirror)
+    // ===========================
     const terminal = $("terminal");
     const status = $("termStatus");
     if (status) status.textContent = "Ready";
     if (terminal) terminal.textContent = ">>> Ready...";
 
-    // draft load + saved badge
+    // Якщо редактор ще не створено - створюємо
+    if (!myCodeMirror) {
+      myCodeMirror = CodeMirror.fromTextArea($("codeEditor"), {
+        mode: "python",
+        theme: state.settings.theme === "light" ? "default" : "dracula",
+        lineNumbers: true,
+        indentUnit: 4,
+        autoCloseBrackets: true,
+        extraKeys: {
+          "Ctrl-Enter": () => $("btnRun").click(),
+          "Cmd-Enter": () => $("btnRun").click()
+        }
+      });
+    }
+
+    // Завантажуємо чернетку
     const draft = getDraft(id);
-    editor.value = draft || "";
-    updateGutter();
+    
+    // Очищаємо попередні обробники, щоб не зберігало двічі
+    myCodeMirror.off("change"); 
+    myCodeMirror.setValue(draft || "");
 
     const savedBadge = $("badgeSaved");
     if (savedBadge) {
@@ -1660,38 +1669,20 @@ function openLevelPicker(courseId, onDone) {
       savedBadge.style.opacity = draft ? "1" : ".75";
     }
 
-    // autosave debounce
-    clearTimeout(editor._autosaveTimer);
-    editor.oninput = () => {
-      updateGutter();
+    // Автозбереження (замість старого editor.oninput)
+    myCodeMirror.on("change", () => {
       if (savedBadge) { savedBadge.textContent = "Saving..."; savedBadge.style.opacity = "1"; }
-      clearTimeout(editor._autosaveTimer);
-      editor._autosaveTimer = setTimeout(() => {
-        setDraft(id, editor.value);
+      clearTimeout(myCodeMirror._autosaveTimer);
+      myCodeMirror._autosaveTimer = setTimeout(() => {
+        setDraft(id, myCodeMirror.getValue());
         if (savedBadge) { savedBadge.textContent = "Saved"; savedBadge.style.opacity = "1"; }
       }, 350);
-    };
-
-    // Tab + Ctrl/Meta+Enter
-    editor.onkeydown = function (e) {
-      if (e.key === "Tab") {
-        e.preventDefault();
-        const s = editor.selectionStart;
-        editor.value = editor.value.substring(0, s) + "    " + editor.value.substring(editor.selectionEnd);
-        editor.selectionEnd = s + 4;
-        updateGutter();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        e.preventDefault();
-        $("btnRun").click();
-      }
-    };
+    });
 
     // buttons
     $("btnClear").onclick = () => {
       if (!confirm("Очистити редактор?")) return;
-      editor.value = "";
-      updateGutter();
+      myCodeMirror.setValue(""); // Замість editor.value = ""
       setDraft(id, "");
       if (savedBadge) savedBadge.textContent = "Not saved";
       if (terminal) terminal.textContent = ">>> Cleared.";
@@ -1720,7 +1711,7 @@ function openLevelPicker(courseId, onDone) {
 
     // RUN
     $("btnRun").onclick = () => {
-      const code = editor.value;
+      const code = myCodeMirror.getValue();
       const run = runTaskTestsSmart(task, code);
 
       if (terminal) terminal.textContent = buildTerminalReport(run);
@@ -2055,5 +2046,6 @@ applyTheme(state.settings.theme || "dark");
   renderByRoute();
 })();
 })();
+
 
 
