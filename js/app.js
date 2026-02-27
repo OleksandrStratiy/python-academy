@@ -1330,7 +1330,7 @@ let myCodeMirror = null;
         box.textContent = codeText;
       }
     });
-    $("lessonTask").innerText = task.desc || "";
+    $("lessonTask").innerHTML = task.desc || "";
     $("lessonExpected").textContent = task.expected || "(немає)";
 
     const kind = task.kind || "practice";
