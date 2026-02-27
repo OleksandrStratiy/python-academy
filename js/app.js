@@ -68,17 +68,15 @@
         if (!user) return;
         await cloudSaveState(user.id, getStateFn());
       } catch (e) {
-  console.error("Supabase load/save error:", e);
-  // fallback: якщо Google user є — створимо локального юзера, щоб не показувало overlay
-  if (!state.user) {
-    const name =
-      user.user_metadata?.full_name ||
-      user.email?.split("@")?.[0] ||
-      "User";
-    state.user = { name, xp:0, streak:1, lastDay:null, completed:{}, attempts:{}, spoiled:{}, drafts:{} };
-    save();
-  }
-}
+        const user = await getSessionUser();
+        console.error("Supabase load/save error:", e);
+      
+        // fallback: якщо state.user ще не створений — створимо мінімального локального
+        if (!state.user) {
+          state.user = { name: "User", xp:0, streak:1, lastDay:null, completed:{}, attempts:{}, spoiled:{}, drafts:{} };
+          save();
+        }
+      }
     }, 900);
   }
   
@@ -190,7 +188,7 @@
       leaderboard: (typeof LEADERBOARD_SEED !== "undefined" ? LEADERBOARD_SEED.slice(0) : []),
 
       // NEW: обрані рівні для курсів
-      courseLevels: {} // наприклад: { "python_basics": "rookie" }
+      courseLevels: {} // наприклад: { "python_basics": "Junior" }
     };
 
     function load() {
@@ -242,6 +240,14 @@
 
     const icon = $("uiThemeIcon");
     if (icon) icon.className = (t === "light") ? "ri-moon-line" : "ri-sun-line";
+    if (myCodeMirror) myCodeMirror.setOption("theme", t === "light" ? "default" : "dracula");
+
+    // ДОДАЙ ЦЕЙ БЛОК:
+    const themeClass = t === "light" ? "default" : "dracula";
+    document.querySelectorAll('.code-box').forEach(box => {
+      box.classList.remove('cm-s-default', 'cm-s-dracula');
+      box.classList.add(`cm-s-${themeClass}`);
+    });
   }
 
   function toggleTheme() {
@@ -281,12 +287,12 @@
     }
 
     // ===========================
-  // Course difficulty (Rookie / Adept / Master)
+  // Course difficulty (Junior / Middle / Senior)
   // ===========================
   const LEVELS = [
-    { id: "rookie",  title: "🟢 Junior",  desc: "Легкий старт, базові задачі" },
-    { id: "adept",   title: "🟡 Middle",  desc: "Середній рівень, більше логіки" },
-    { id: "master",  title: "🔴 Senior",  desc: "Складні задачі та підводні камені" },
+    { id: "Junior",  title: "🟢 Junior",  desc: "Легкий старт, базові задачі" },
+    { id: "Middle",   title: "🟡 Middle",  desc: "Середній рівень, більше логіки" },
+    { id: "Senior",  title: "🔴 Senior",  desc: "Складні задачі та підводні камені" },
   ];
 
   function getCourseLevel(courseId) {
@@ -299,18 +305,18 @@
     save();
   }
 
-  // task.difficulty: "rookie" | "adept" | "master" | "all"
+  // task.difficulty: "Junior" | "Middle" | "Senior" | "all"
   function visibleTaskRefs(courseId, moduleId) {
     const course = DB.find(c => c.id === courseId);
     const mod = course?.modules.find(m => m.id === moduleId);
     if (!course || !mod) return [];
 
-    const lvl = getCourseLevel(courseId) || "rookie";
+    const lvl = getCourseLevel(courseId) || "Junior";
 
     return (mod.tasks || [])
       .map((t, idx) => ({ t, origIdx: idx }))
       .filter(r => {
-        const d = r.t.difficulty || "rookie";
+        const d = r.t.difficulty || "Junior";
         return d === "all" || d === lvl;
       });
   }
@@ -407,11 +413,11 @@ function updateUserUI() {
 
   function courseProgress(course) {
     let total = 0, done = 0;
-    const lvl = getCourseLevel(course.id) || "rookie";
+    const lvl = getCourseLevel(course.id) || "Junior";
 
     course.modules.forEach(m => {
       (m.tasks || []).forEach((t, idx) => {
-        const d = t.difficulty || "rookie";
+        const d = t.difficulty || "Junior";
         if (!(d === "all" || d === lvl)) return;
         total++;
         if (isDone(course.id, m.id, idx)) done++;
@@ -455,7 +461,7 @@ function updateUserUI() {
     return [];
   }
 
-  function calculateBonuses({ baseXp, attemptsBefore, taskId }) {
+  function calculateBonuses({ baseXp, attemptsBefore, taskId, courseId }) {
     let sniper = 0;
     let speed = 0;
     let streakBonus = 0;
@@ -470,12 +476,8 @@ function updateUserUI() {
     if (session && session.id === taskId) {
       const elapsedSec = (Date.now() - session.startedAt) / 1000;
   
-      let limit = 180; // rookie
-      if (getCourseLevel && state.courseLevels) {
-        const level = Object.values(state.courseLevels)[0];
-        if (level === "adept") limit = 240;
-        if (level === "master") limit = 360;
-      }
+      const level = (typeof getCourseLevel === "function" ? getCourseLevel(courseId) : null) || "Junior";
+      let limit = (level === "Senior") ? 360 : (level === "Middle") ? 240 : 180;
   
       if (elapsedSec <= limit) {
         speed = Math.round(baseXp * 0.1);
@@ -539,11 +541,19 @@ function updateUserUI() {
     `;
 
     sb.querySelectorAll("[data-course-level]").forEach(b => {
-  b.onclick = () => {
-    const cid = b.getAttribute("data-course-level");
-    openLevelPicker(cid, () => renderCourseModules(cid));
-  };
-});
+      b.onclick = () => {
+        const cid = b.getAttribute("data-course-level");
+    
+        // просто відкриваємо сторінку курсу (там уже є твої картки рівнів)
+        goto(`/course/${cid}`);
+    
+        // і мʼяко скролимо до блоку рівнів (додамо id в розмітку)
+        setTimeout(() => {
+          document.getElementById("levelCards")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 50);
+      };
+    });
 
     sb.querySelectorAll("[data-nav]").forEach(b => {
       const to = b.getAttribute("data-nav");
@@ -640,14 +650,18 @@ function updateUserUI() {
     });
   }
   
-function openCourseWithLevel(cid) {
-  if (!getCourseLevel(cid)) {
-    openLevelPicker(cid, () => goto(`/course/${cid}`));
-  } else {
+  function openCourseWithLevel(cid) {
     goto(`/course/${cid}`);
+  
+    // якщо рівень ще не обраний — просто підкажемо (без попапа)
+    if (!getCourseLevel(cid)) {
+      toast("🎚️ Обери складність курсу (Junior / Middle / Senior) — це впливає на задачі.");
+    }
   }
-}
 
+
+
+  
   // ===========================
   // Home / modules / leaderboard views
   // ===========================
@@ -691,14 +705,16 @@ function openCourseWithLevel(cid) {
     $("breadcrumbs").innerHTML = `<span class="crumb" data-crumb-home style="cursor:pointer">Головна</span> / ${escapeHtml(course.title)}`;
     $("modulesTitle").textContent = course.title;
 
-    // Отримуємо поточний рівень (за замовчуванням rookie)
-    const currentLvl = (typeof getCourseLevel === "function" ? getCourseLevel(course.id) : null) || "rookie";
-
+    // Отримуємо поточний рівень (за замовчуванням Junior)
+    const currentLvl = (typeof getCourseLevel === "function" ? getCourseLevel(course.id) : null) || "Junior";
+    if (!getCourseLevel(course.id)) {
+      toast("👋 Спочатку обери складність зверху — потім відкривай модулі 🙂");
+    }
     // Генеруємо красиві картки рівнів
     const levelsHtml = LEVELS.map(l => {
       const isActive = l.id === currentLvl;
       const icon = l.title.split(" ")[0]; // Беремо смайлик (🟢, 🟡, 🔴)
-      const name = l.title.split(" ")[1]; // Беремо назву (Rookie, Adept, Master)
+      const name = l.title.split(" ")[1]; // Беремо назву (Junior, Middle, Senior)
       
       return `
         <button class="lvl-btn ${isActive ? 'active' : ''}" data-set-lvl="${l.id}">
@@ -715,7 +731,7 @@ function openCourseWithLevel(cid) {
     $("modulesDesc").innerHTML = `
       <p style="color: var(--text-dim); margin-bottom: 20px; font-size: 16px;">${escapeHtml(course.desc || "Обери модуль")}</p>
       
-      <div class="level-selector-inline">
+      <div class="level-selector-inline" id="levelCards">
         <div class="level-selector-header">
           <span>🎚️ Обери складність курсу</span>
           <div class="info-tooltip">
@@ -855,337 +871,58 @@ async function renderLeaderboard() {
     renderSidebarHome();
   }
 
+
+
+  
+
+// ===========================
+  // SKULPT PYTHON ENGINE
   // ===========================
-  // Gutter
-  // ===========================
-  function updateGutter() {
-    const ta = $("codeEditor");
-    const gutter = $("gutter");
-    if (!ta || !gutter) return;
-    const lines = ta.value.split("\n").length;
-    let html = "";
-    for (let i = 1; i <= lines; i++) html += `<div>${i}</div>`;
-    gutter.innerHTML = html;
-  }
-
-  // ===========================
-  // MiniPy + Smart Checker
-  // ===========================
-  function normalizeNewlines(s) { return String(s ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n"); }
-  function stripComment(line) { const i = line.indexOf("#"); return i >= 0 ? line.slice(0, i) : line; }
-  function rstrip(s) { return s.replace(/\s+$/g, ""); }
-  function lcountSpaces(s) { const m = s.match(/^ */); return m ? m[0].length : 0; }
-
-  function splitTopLevelComma(s) {
-    const out = [];
-    let cur = "";
-    let depth = 0;
-    let q = null;
-    for (let i = 0; i < s.length; i++) {
-      const ch = s[i];
-      if (q) {
-        cur += ch;
-        if (ch === q && s[i - 1] !== "\\") q = null;
-        continue;
+  function runPythonSkulpt(code) {
+    return new Promise((resolve) => {
+      let output = "";
+      
+      // Функція для збору виводу print()
+      function outf(text) { 
+        output += text; 
       }
-      if (ch === "'" || ch === '"') { q = ch; cur += ch; continue; }
-      if (ch === "(") { depth++; cur += ch; continue; }
-      if (ch === ")") { depth = Math.max(0, depth - 1); cur += ch; continue; }
-      if (ch === "," && depth === 0) { out.push(cur.trim()); cur = ""; continue; }
-      cur += ch;
-    }
-    if (cur.trim()) out.push(cur.trim());
-    return out;
-  }
-
-  function parseStringLiteral(tok){
-  tok = tok.trim();
-  const m = tok.match(/^(['"])([\s\S]*)\1$/);
-  if(!m) return null;
-  return m[2]
-    .replace(/\\n/g,"\n")
-    .replace(/\\t/g,"\t")
-    .replace(/\\"/g,'"')
-    .replace(/\\'/g,"'")
-    .replace(/\\\\/g,"\\"); // ✅ ОЦЕ ДОДАТИ
-}
-
-
-  function isNumber(tok) {
-    return /^-?\d+(\.\d+)?$/.test(tok.trim());
-  }
-
-  function evalExpr(expr, env) {
-    expr = expr.trim();
-    if (expr === "") return "";
-
-    const s = parseStringLiteral(expr);
-    if (s !== null) return s;
-
-    if (isNumber(expr)) return Number(expr);
-
-    if (expr === "True") return true;
-    if (expr === "False") return false;
-
-    if (/^[A-Za-z_]\w*$/.test(expr) && Object.prototype.hasOwnProperty.call(env, expr)) return env[expr];
-
-    // comparisons
-    const cmpOps = ["==", "!=", ">=", "<=", "<", ">"];
-    for (const op of cmpOps) {
-      const idx = expr.indexOf(op);
-      if (idx > 0) {
-        const a = evalExpr(expr.slice(0, idx), env);
-        const b = evalExpr(expr.slice(idx + op.length), env);
-        switch (op) {
-          case "==": return a == b; // eslint-disable-line eqeqeq
-          case "!=": return a != b; // eslint-disable-line eqeqeq
-          case ">=": return a >= b;
-          case "<=": return a <= b;
-          case ">": return a > b;
-          case "<": return a < b;
+      
+      // Функція для читання вбудованих файлів Skulpt
+      function builtinRead(x) {
+        if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined) {
+          throw "File not found: '" + x + "'";
         }
-      }
-    }
-
-    // safety: allow only a small set
-    if (!/^[\w\s\+\-\*\/\%\(\)\.'"]+$/.test(expr)) {
-      throw new Error("Недозволені символи у виразі");
-    }
-
-    // tokenization
-    const tokens = [];
-    let i = 0;
-    while (i < expr.length) {
-      const ch = expr[i];
-      if (ch === " ") { i++; continue; }
-      if ("()+-*/%".includes(ch)) { tokens.push(ch); i++; continue; }
-
-      if (ch === "'" || ch === '"') {
-        let j = i + 1;
-        while (j < expr.length) {
-          if (expr[j] === ch && expr[j - 1] !== "\\") break;
-          j++;
-        }
-        if (j >= expr.length) throw new Error("Незакриті лапки");
-        tokens.push(expr.slice(i, j + 1));
-        i = j + 1;
-        continue;
+        return Sk.builtinFiles["files"][x];
       }
 
-      let j = i;
-      while (j < expr.length && /[\w\.]/.test(expr[j])) j++;
-      tokens.push(expr.slice(i, j));
-      i = j;
-    }
-
-    const prec = { "+": 1, "-": 1, "*": 2, "/": 2, "%": 2 };
-    const out = [];
-    const ops = [];
-
-    function applyOp() {
-      const op = ops.pop();
-      const b = out.pop();
-      const a = out.pop();
-      if (op === "+") {
-        return out.push((typeof a === "string" || typeof b === "string") ? String(a) + String(b) : (a + b));
-      }
-      if (op === "-") return out.push(a - b);
-      if (op === "*") return out.push(a * b);
-      if (op === "/") return out.push(a / b);
-      if (op === "%") return out.push(a % b);
-    }
-
-    for (let t of tokens) {
-      t = t.trim();
-      if (!t) continue;
-
-      if (t === "(") { ops.push(t); continue; }
-      if (t === ")") {
-        while (ops.length && ops[ops.length - 1] !== "(") applyOp();
-        if (!ops.length) throw new Error("Зайва )");
-        ops.pop();
-        continue;
-      }
-      if (prec[t]) {
-        while (ops.length && prec[ops[ops.length - 1]] >= prec[t]) applyOp();
-        ops.push(t);
-        continue;
-      }
-
-      const sv = parseStringLiteral(t);
-      if (sv !== null) out.push(sv);
-      else if (isNumber(t)) out.push(Number(t));
-      else if (/^[A-Za-z_]\w*$/.test(t)) {
-        if (!Object.prototype.hasOwnProperty.call(env, t)) throw new Error(`Невідома змінна: ${t}`);
-        out.push(env[t]);
-      } else {
-        throw new Error(`Не можу розпізнати: ${t}`);
-      }
-    }
-
-    while (ops.length) {
-      if (ops[ops.length - 1] === "(") throw new Error("Незакрита (");
-      applyOp();
-    }
-    if (out.length !== 1) throw new Error("Помилка виразу");
-    return out[0];
-  }
-
-  class MiniPy {
-    run(code) {
-      code = normalizeNewlines(code);
-      const rawLines = code.split("\n").map(stripComment).map(rstrip);
-      while (rawLines.length && rawLines[rawLines.length - 1].trim() === "") rawLines.pop();
-
-      const env = {};
-      let stdout = "";
-      let safetySteps = 0;
-
-      const printFn = (args, kwargs) => {
-        const sep = (kwargs.sep !== undefined) ? String(kwargs.sep) : " ";
-        const end = (kwargs.end !== undefined) ? String(kwargs.end) : "\n";
-        const text = args.map(a => String(a)).join(sep);
-        stdout += text + end;
-      };
-
-      const execBlockSimple = (start, indent, endExclusive) => {
-        let i = start;
-        while (i < endExclusive) {
-          const line = rawLines[i];
-          if (line.trim() === "") { i++; continue; }
-          const ind = lcountSpaces(line);
-          if (ind !== indent) throw new Error("Неправильний відступ у блоці");
-          i = execStatement(i, indent);
+      Sk.configure({
+        output: outf,
+        read: builtinRead,
+        execLimit: 5000, // Захист від нескінченних циклів (5 секунд)
+        __future__: Sk.python3, // <--- ВМИКАЄМО СУЧАСНИЙ PYTHON 3 🚀
+        inputfun: function (promptMsg) {
+          return new Promise((resolveInput) => {
+            // Використовуємо браузерний prompt для input()
+            let val = window.prompt(promptMsg || "");
+            resolveInput(val !== null ? val : "");
+          });
         }
-      };
+      });
 
-      const execStatement = (i, baseIndent) => {
-        if (++safetySteps > 5000) throw new Error("Занадто багато кроків (safety limit)");
-        const line = rawLines[i];
-        const stmt = line.trim();
+      // Асинхронний запуск коду
+      let myPromise = Sk.misceval.asyncToPromise(function() {
+        return Sk.importMainWithBody("<stdin>", false, code, true);
+      });
 
-        // if/else
-        if (/^if\s+/.test(stmt)) {
-          if (!stmt.endsWith(":")) throw new Error("if має закінчуватись ':'");
-          const condExpr = stmt.slice(3, -1).trim();
-          const cond = !!evalExpr(condExpr, env);
-
-          const thenIndent = baseIndent + 4;
-          const thenStart = i + 1;
-
-          let j = thenStart;
-          while (j < rawLines.length) {
-            const ln = rawLines[j];
-            if (ln.trim() === "") { j++; continue; }
-            const ind = lcountSpaces(ln);
-            if (ind < thenIndent) break;
-            j++;
-          }
-          const thenEnd = j;
-
-          let hasElse = false;
-          let elseStart = -1;
-          let elseEnd = -1;
-
-          if (thenEnd < rawLines.length) {
-            const ln = rawLines[thenEnd];
-            if (lcountSpaces(ln) === baseIndent && ln.trim() === "else:") {
-              hasElse = true;
-              elseStart = thenEnd + 1;
-              let k = elseStart;
-              while (k < rawLines.length) {
-                const ln2 = rawLines[k];
-                if (ln2.trim() === "") { k++; continue; }
-                const ind2 = lcountSpaces(ln2);
-                if (ind2 < thenIndent) break;
-                k++;
-              }
-              elseEnd = k;
-            }
-          }
-
-          if (cond) execBlockSimple(thenStart, thenIndent, thenEnd);
-          else if (hasElse) execBlockSimple(elseStart, thenIndent, elseEnd);
-
-          return hasElse ? elseEnd : thenEnd;
+      myPromise.then(
+        function() {
+          resolve({ ok: true, stdout: output.replace(/\s+$/g, "") });
+        },
+        function(err) {
+          resolve({ ok: false, error: err.toString(), stdout: output.replace(/\s+$/g, "") });
         }
-
-        // for in range(a,b)
-        const fm = stmt.match(/^for\s+([A-Za-z_]\w*)\s+in\s+range\s*\(\s*([^,]+)\s*,\s*([^)]+)\s*\)\s*:\s*$/);
-        if (fm) {
-          const varName = fm[1];
-          const a = Number(evalExpr(fm[2], env));
-          const b = Number(evalExpr(fm[3], env));
-          if (!Number.isFinite(a) || !Number.isFinite(b)) throw new Error("range(a,b): a/b мають бути числами");
-
-          const bodyIndent = baseIndent + 4;
-          const bodyStart = i + 1;
-
-          let j = bodyStart;
-          while (j < rawLines.length) {
-            const ln = rawLines[j];
-            if (ln.trim() === "") { j++; continue; }
-            const ind = lcountSpaces(ln);
-            if (ind < bodyIndent) break;
-            j++;
-          }
-          const bodyEnd = j;
-
-          for (let v = a; v < b; v++) {
-            env[varName] = v;
-            execBlockSimple(bodyStart, bodyIndent, bodyEnd);
-          }
-          return bodyEnd;
-        }
-
-        // assignment
-        const am = stmt.match(/^([A-Za-z_]\w*)\s*=\s*(.+)$/);
-        if (am) {
-          env[am[1]] = evalExpr(am[2], env);
-          return i + 1;
-        }
-
-        // print(...)
-        const pm = stmt.match(/^print\s*\(([\s\S]*)\)\s*$/);
-        if (pm) {
-          const inner = pm[1].trim();
-          const args = [];
-          const kwargs = {};
-
-          if (inner !== "") {
-            const parts = splitTopLevelComma(inner);
-            for (const part of parts) {
-              const km = part.match(/^([A-Za-z_]\w*)\s*=\s*(.+)$/);
-              if (km) kwargs[km[1]] = evalExpr(km[2], env);
-              else args.push(evalExpr(part, env));
-            }
-          }
-          printFn(args, kwargs);
-          return i + 1;
-        }
-
-        // ignore imports
-        if (/^import\s+/.test(stmt) || /^from\s+/.test(stmt)) return i + 1;
-
-        if (stmt === "") return i + 1;
-        throw new Error(`Невідома команда: ${stmt}`);
-      };
-
-      try {
-        let i = 0;
-        while (i < rawLines.length) {
-          const line = rawLines[i];
-          if (line.trim() === "") { i++; continue; }
-          const ind = lcountSpaces(line);
-          if (ind !== 0) throw new Error("На верхньому рівні очікується відступ 0");
-          i = execStatement(i, 0);
-        }
-        const norm = stdout.replace(/\s+$/g, "");
-        return { ok: true, stdout: norm };
-      } catch (e) {
-        return { ok: false, error: e.message || String(e), stdout: stdout.replace(/\s+$/g, "") };
-      }
-    }
+      );
+    });
   }
 
   // ===========================
@@ -1281,9 +1018,8 @@ async function renderLeaderboard() {
       .replace(/\n/g, "↵\n");
   }
 
-  function runTaskTestsSmart(task, code) {
-    const py = new MiniPy();
-    const exec = py.run(code);
+  async function runTaskTestsSmart(task, code) {
+  const exec = await runPythonSkulpt(code);
     const results = [];
     const tests = task.tests || [];
     const rawStdout = String(exec.stdout ?? "");
@@ -1399,49 +1135,78 @@ async function renderLeaderboard() {
     return { allPass, results, exec };
   }
 
-  function buildTerminalReport(runResult) {
+function buildTerminalReport(runResult) {
     const { exec, results } = runResult;
-    const out = [];
+    
+    // Починаємо формувати HTML-рядок
+    let html = `<div style="font-weight:900; color:var(--text-dim); margin-bottom:14px; text-transform:uppercase; font-size:11px; letter-spacing:1px;">Python Academy • Terminal</div>`;
 
-    out.push("Python Academy • Smart Checker");
-    out.push("──────────────────────────────");
-
+    // ==========================================
+    // БЛОК 1: ЩО НАДРУКУВАЛА ПРОГРАМА (ВИВІД)
+    // ==========================================
+    html += `<div style="margin-bottom: 20px;">`;
+    html += `<div style="font-size:12px; color:var(--primary); font-weight:900; margin-bottom:6px;">📺 Твій вивід:</div>`;
+    
     if (!exec.ok) {
-      out.push("❌ Помилка виконання:");
-      out.push(exec.error);
-      out.push("");
+      // Якщо синтаксична помилка (Python впав) - робимо червоний фон
+      html += `<div style="color: #fca5a5; background: rgba(239, 68, 68, 0.15); border-left: 3px solid #ef4444; padding: 10px 14px; border-radius: 6px; font-family: var(--mono); font-size: 14px; white-space: pre-wrap;">${escapeHtml(exec.error)}</div>`;
     } else {
-      out.push("Output:");
-      out.push(exec.stdout ? exec.stdout : "(empty)");
-      out.push("");
+      // Якщо програма відпрацювала нормально - нейтральний фон
+      const outText = exec.stdout ? escapeHtml(exec.stdout) : "<i style='color: rgba(255,255,255,0.3);'>(нічого не виведено)</i>";
+      html += `<div style="color: var(--text); background: rgba(255, 255, 255, 0.05); border-left: 3px solid var(--text-dim); padding: 10px 14px; border-radius: 6px; font-family: var(--mono); font-size: 14px; white-space: pre-wrap; min-height: 42px;">${outText}</div>`;
     }
+    html += `</div>`;
 
-    out.push("Tests:");
+    // ==========================================
+    // БЛОК 2: ПЕРЕВІРКА ТЕСТІВ (ЗВІТ)
+    // ==========================================
+    html += `<div>`;
+    html += `<div style="font-size:12px; color:var(--primary); font-weight:900; margin-bottom:6px;">🎯 Результат перевірки:</div>`;
+
+    // Визначаємо загальний колір блоку перевірки
+    const allPass = results.length ? results.every(r => r.pass) : true;
+    const testBg = allPass ? "rgba(34, 197, 94, 0.1)" : "rgba(251, 191, 36, 0.1)"; // Зелений або Жовтий
+    const testBorder = allPass ? "var(--success)" : "var(--warn)";
+
+    html += `<div style="background: ${testBg}; border-left: 3px solid ${testBorder}; padding: 12px 14px; border-radius: 6px;">`;
+
     for (const r of results) {
-      out.push(`${r.pass ? "✅" : "❌"} ${r.name}`);
-      if (!r.pass) {
-        if (r.reason) out.push(`   Reason: ${r.reason}`);
-        if (r.want !== undefined && String(r.want) !== "") out.push(`   Expected: ${String(r.want).slice(0, 400)}`);
-        if (r.got !== undefined && String(r.got) !== "") out.push(`   Got: ${String(r.got).slice(0, 400)}`);
+      const icon = r.pass ? "✅" : "❌";
+      const color = r.pass ? "var(--success)" : "var(--warn)";
+      
+      html += `<div style="margin-bottom: 8px;">`;
+      html += `<strong style="color:${color}; font-size:14px;">${icon} ${escapeHtml(r.name)}</strong>`;
 
+      if (!r.pass) {
+        // Якщо тест впав, показуємо деталі з відступом
+        html += `<div style="margin-left: 24px; margin-top: 6px; font-size: 13px; color: rgba(255,255,255,0.85); background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 8px;">`;
+        if (r.reason) html += `<div style="margin-bottom:4px;"><span style="color:var(--danger); font-weight:700;">Помилка:</span> ${escapeHtml(r.reason)}</div>`;
+        if (r.want !== undefined && String(r.want) !== "") html += `<div style="margin-bottom:2px;"><span style="color:var(--text-dim);">Очікувалось:</span> <code style="color:var(--success); font-weight:900;">${escapeHtml(String(r.want))}</code></div>`;
+        if (r.got !== undefined && String(r.got) !== "") html += `<div><span style="color:var(--text-dim);">Отримано:</span> <code style="color:var(--danger); font-weight:900;">${escapeHtml(String(r.got))}</code></div>`;
+
+        // Розумні підказки (якщо є проблеми з пробілами чи апострофами)
         const hints = r.meta?.hints || [];
-        for (const h of hints) out.push(`   ${h}`);
+        for (const h of hints) {
+           html += `<div style="margin-top:6px; color: #fbbf24; font-weight:700;">💡 ${escapeHtml(h)}</div>`;
+        }
+        html += `</div>`;
       }
+      html += `</div>`;
     }
 
+    // Блок для візуалізації невидимих пробілів (якщо потрібно)
     const firstStdFail = results.find(r => !r.pass && r.meta && r.meta.gotRaw !== undefined);
     if (firstStdFail) {
-      out.push("");
-      out.push("Diff (whitespace visible):");
-      out.push("Expected:");
-      out.push(visualizeWhitespace(firstStdFail.meta.wantRaw));
-      out.push("Got:");
-      out.push(visualizeWhitespace(firstStdFail.meta.gotRaw));
-      out.push("");
-      out.push(`Normalize mode: ${firstStdFail.meta.normalize}`);
+      html += `<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.2); margin: 12px 0;">`;
+      html += `<div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">🔎 Аналіз невидимих символів (пробіли, переноси):</div>`;
+      html += `<div style="font-size: 13px; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 6px; font-family: var(--mono);">`;
+      html += `<div style="color: var(--success); margin-bottom:4px;">[Твоя мета]➔ ${escapeHtml(visualizeWhitespace(firstStdFail.meta.wantRaw))}</div>`;
+      html += `<div style="color: #fca5a5;">[Твій код] ➔ ${escapeHtml(visualizeWhitespace(firstStdFail.meta.gotRaw))}</div>`;
+      html += `</div>`;
     }
 
-    return out.join("\n");
+    html += `</div></div>`; // Закриваємо тест-блок
+    return html;
   }
 
   // ===========================
@@ -1450,8 +1215,8 @@ async function renderLeaderboard() {
   function openSettings() {
     if (!$("soundToggle")) return;
     $("soundToggle").checked = !!state.settings.sound;
-    $("exportData").value = safeB64Encode(state);
-    $("importData").value = "";
+
+   
     settingsOverlay && settingsOverlay.classList.add("active");
   }
 
@@ -1459,53 +1224,19 @@ async function renderLeaderboard() {
     settingsOverlay && settingsOverlay.classList.remove("active");
   }
 
-function openLevelPicker(courseId, onDone) {
-  const existing = document.getElementById("levelOverlay");
-  if (existing) existing.remove();
-
-  const course = DB.find(c => c.id === courseId);
-  const ov = document.createElement("div");
-  ov.id = "levelOverlay";
-  ov.className = "overlay active";
-
-  ov.innerHTML = `
-    <div class="modal settings-modal">
-      <div class="modal-head">
-        <h3>🎚️ Рівень курсу: ${escapeHtml(course?.title || courseId)}</h3>
-        <button class="btn-close" id="lvlClose">✕</button>
-      </div>
-
-      <div class="set-block">
-        <p class="mutedish">Обери один рівень. Він визначає, які задачі відкриються у всіх модулях цього курсу.</p>
-        <div class="level-grid">
-          ${LEVELS.map(l => `
-            <button class="level-card" data-level="${l.id}">
-              <div class="level-title">${l.title}</div>
-              <div class="mutedish tiny">${escapeHtml(l.desc)}</div>
-            </button>
-          `).join("")}
-        </div>
-        <div class="tiny mutedish" style="margin-top:10px;">
-          Порада: задачі без поля <code>difficulty</code> автоматично вважаються <b>rookie</b>.
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(ov);
-
-  ov.querySelector("#lvlClose").onclick = () => ov.remove();
-
-  ov.querySelectorAll("[data-level]").forEach(btn => {
-    btn.onclick = () => {
-      const lvl = btn.getAttribute("data-level");
-      setCourseLevel(courseId, lvl);
-      toast(`Рівень: ${LEVELS.find(x => x.id === lvl)?.title || lvl}`);
-      ov.remove();
-      if (typeof onDone === "function") onDone();
-    };
-  });
-}
+  function openLevelPicker(courseId, onDone) {
+    // Попап більше не показуємо — у тебе вже є вбудовані картки на цій сторінці
+    toast("🎚️ Рівень обирається у блоці «Обери складність курсу».");
+  
+    // якщо ми вже на сторінці курсу — просто скролимо до блоку
+    setTimeout(() => {
+      const el = document.querySelector(".level-selector-inline");
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  
+    // щоб не ламати стару логіку викликів
+    if (typeof onDone === "function") onDone();
+  }
   
   // ===========================
   // Typing effect (home)
@@ -1539,6 +1270,10 @@ function openLevelPicker(courseId, onDone) {
     }
   }
 
+
+
+
+let myCodeMirror = null;
   // ===========================
   // Lesson render
   // ===========================
@@ -1574,6 +1309,27 @@ function openLevelPicker(courseId, onDone) {
 
     $("lessonTitle").innerText = task.title;
     $("lessonContent").innerHTML = task.theory || "";
+ // === ПІДСВІТКА КОДУ В ТЕОРІЇ ===
+    const currentTheme = state.settings.theme === "light" ? "default" : "dracula";
+    
+    $("lessonContent").querySelectorAll('.code-box').forEach(box => {
+      // 1. Правильно дістаємо текст (зберігаємо твої <br> як нові рядки)
+      let codeText = box.innerHTML.replace(/<br\s*\/?>/gi, '\n');
+      let temp = document.createElement("div");
+      temp.innerHTML = codeText;
+      codeText = (temp.textContent || temp.innerText || "").trim();
+
+      // 2. Очищаємо блок і вішаємо клас теми
+      box.innerHTML = "";
+      box.classList.add(`cm-s-${currentTheme}`); // Додаємо тему для синтаксису
+
+      // 3. Фарбуємо код
+      if (window.CodeMirror && typeof CodeMirror.runMode === "function") {
+        CodeMirror.runMode(codeText, "python", box);
+      } else {
+        box.textContent = codeText;
+      }
+    });
     $("lessonTask").innerText = task.desc || "";
     $("lessonExpected").textContent = task.expected || "(немає)";
 
@@ -1643,16 +1399,42 @@ function openLevelPicker(courseId, onDone) {
     }
 
     // editor / terminal init
-    const editor = $("codeEditor");
+    // ===========================
+    // EDITOR INIT (CodeMirror)
+    // ===========================
     const terminal = $("terminal");
     const status = $("termStatus");
     if (status) status.textContent = "Ready";
     if (terminal) terminal.textContent = ">>> Ready...";
 
-    // draft load + saved badge
+    // Якщо редактор ще не створено - створюємо
+    if (!myCodeMirror) {
+      myCodeMirror = CodeMirror.fromTextArea($("codeEditor"), {
+        mode: "python",
+        theme: state.settings.theme === "light" ? "default" : "dracula",
+        lineNumbers: true,
+        indentUnit: 4,
+        autoCloseBrackets: true,
+        extraKeys: {
+          "Ctrl-Enter": () => $("btnRun").click(),
+          "Cmd-Enter": () => $("btnRun").click()
+        }
+      });
+    }
+
+// Завантажуємо фінальне рішення (якщо є), або чернетку
+// 1. Формуємо код, який треба показати
+    const pastSolution = state.user?.solutions?.[id];
     const draft = getDraft(id);
-    editor.value = draft || "";
-    updateGutter();
+    const codeToShow = pastSolution !== undefined ? pastSolution : (draft || "");
+
+    // 2. Якщо вже був обробник автозбереження — правильно його видаляємо!
+    if (myCodeMirror._currentChangeHandler) {
+      myCodeMirror.off("change", myCodeMirror._currentChangeHandler);
+    }
+
+    // 3. Вставляємо код завдання у редактор
+    myCodeMirror.setValue(codeToShow);
 
     const savedBadge = $("badgeSaved");
     if (savedBadge) {
@@ -1660,38 +1442,26 @@ function openLevelPicker(courseId, onDone) {
       savedBadge.style.opacity = draft ? "1" : ".75";
     }
 
-    // autosave debounce
-    clearTimeout(editor._autosaveTimer);
-    editor.oninput = () => {
-      updateGutter();
+    // 4. Створюємо іменований обробник (щоб потім його можна було видалити)
+    myCodeMirror._currentChangeHandler = (cm, changeObj) => {
+      // Ігноруємо штучну зміну (коли код просто підвантажується через setValue)
+      if (changeObj.origin === "setValue") return; 
+
       if (savedBadge) { savedBadge.textContent = "Saving..."; savedBadge.style.opacity = "1"; }
-      clearTimeout(editor._autosaveTimer);
-      editor._autosaveTimer = setTimeout(() => {
-        setDraft(id, editor.value);
+      clearTimeout(myCodeMirror._autosaveTimer);
+      myCodeMirror._autosaveTimer = setTimeout(() => {
+        setDraft(id, myCodeMirror.getValue());
         if (savedBadge) { savedBadge.textContent = "Saved"; savedBadge.style.opacity = "1"; }
       }, 350);
     };
 
-    // Tab + Ctrl/Meta+Enter
-    editor.onkeydown = function (e) {
-      if (e.key === "Tab") {
-        e.preventDefault();
-        const s = editor.selectionStart;
-        editor.value = editor.value.substring(0, s) + "    " + editor.value.substring(editor.selectionEnd);
-        editor.selectionEnd = s + 4;
-        updateGutter();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        e.preventDefault();
-        $("btnRun").click();
-      }
-    };
+    // 5. Вішаємо новий правильний обробник
+    myCodeMirror.on("change", myCodeMirror._currentChangeHandler);
 
     // buttons
     $("btnClear").onclick = () => {
       if (!confirm("Очистити редактор?")) return;
-      editor.value = "";
-      updateGutter();
+      myCodeMirror.setValue(""); // Замість editor.value = ""
       setDraft(id, "");
       if (savedBadge) savedBadge.textContent = "Not saved";
       if (terminal) terminal.textContent = ">>> Cleared.";
@@ -1718,17 +1488,24 @@ function openLevelPicker(courseId, onDone) {
     $("btnNext").classList.remove("unlocked");
     if (completionState(id)) $("btnNext").classList.add("unlocked");
 
-    // RUN
-    $("btnRun").onclick = () => {
-      const code = editor.value;
-      const run = runTaskTestsSmart(task, code);
 
-      if (terminal) terminal.textContent = buildTerminalReport(run);
+// RUN
+    $("btnRun").onclick = async () => {
+      const code = myCodeMirror.getValue();
+      
+      // Показуємо користувачу, що код виконується
+      if (terminal) terminal.textContent = ">>> Виконання коду...";
+      
+      // Чекаємо результатів від Skulpt
+      const run = await runTaskTestsSmart(task, code);
+
+      if (terminal) terminal.innerHTML = buildTerminalReport(run);
 
       // ==============================
       // FAIL (Помилка виконання або не пройдені тести)
       // ==============================
       if (!run.allPass) {
+        // ... (ДАЛІ ВЕСЬ ТВІЙ КОД ЗАЛИШАЄТЬСЯ БЕЗ ЗМІН)
         const alreadyDone = !!completionState(id);
         if (!alreadyDone) {
           const n = incAttempts(id);
@@ -1753,73 +1530,100 @@ function openLevelPicker(courseId, onDone) {
         return; 
       }
 
-      // ==============================
+     // ==============================
       // SUCCESS (Всі тести пройдені)
       // ==============================
-      // SUCCESS
       const already = !!completionState(id);
+      
       if (!already) {
         const spoiledNow = isSpoiled(id);
+        
         if (!spoiledNow) {
+          // --- ВАРІАНТ 1: Пройдено чесно, вперше (Даємо XP і Бонуси) ---
           
-          // ==============================
-          // РОЗРАХУНОК БОНУСІВ
-          // ==============================
-          const attemptsBefore = getAttempts(id); // Скільки разів запускали код до успіху (0 = з першої спроби)
-          const timeTakenSec = (Date.now() - window.currentTaskStartTime) / 1000; // Час в секундах
-          
-          const baseXP = task.xp || 10;
-          
-          // "Снайпер": +20% XP, якщо вирішено з першої спроби
-          const sniperXP = (attemptsBefore === 0) ? Math.ceil(baseXP * 0.2) : 0; 
-          
-          // "Швидкість": +10% XP, якщо вирішено швидше ніж за 2 хвилини (120 сек)
-          const speedXP = (timeTakenSec < 120) ? Math.ceil(baseXP * 0.1) : 0; 
-          
-          // "Стрік": +1 XP за кожен день безперервного навчання (максимум +10 XP)
-          const streakXP = Math.min(state.user.streak || 1, 10); 
-          
-          const totalXP = baseXP + sniperXP + speedXP + streakXP;
-
-          // Зберігаємо прогрес
           setCompleted(id, "xp");
+
+          // Зберігаємо переможний код назавжди!
+          state.user.solutions = state.user.solutions || {};
+          state.user.solutions[id] = myCodeMirror.getValue();
+
+          // 1) рахуємо бонуси
+          const baseXp = task.xp || 0;
+          const attemptsBefore = getAttempts(id);
+          const bonuses = calculateBonuses({
+            baseXp,
+            attemptsBefore,
+            taskId: id,
+            courseId: course.id
+          });
+
+          const totalXP = baseXp + bonuses.sniper + bonuses.speed + bonuses.streakBonus;
+
+          // 2) нараховуємо XP
           state.user.xp += totalXP;
+
           updateStreak(state.user);
           save();
           updateUserUI();
+
           playSuccessSound(!!state.settings.sound);
           fireConfetti();
 
-          // ЗАПОВНЮЄМО ТА ПОКАЗУЄМО ВІКНО БОНУСІВ
+          // 3) модалка
           $("successTaskName").textContent = task.title;
-          $("xpBase").textContent = `+${baseXP}`;
-          $("xpSniper").textContent = sniperXP > 0 ? `+${sniperXP}` : "0";
-          $("xpSpeed").textContent = speedXP > 0 ? `+${speedXP}` : "0";
-          $("xpStreak").textContent = streakXP > 0 ? `+${streakXP}` : "0";
-          $("xpTotal").textContent = `+${totalXP} XP`;
-          
+          $("xpBase").textContent   = `+${baseXp}`;
+          $("xpSniper").textContent = bonuses.sniper ? `+${bonuses.sniper}` : "0";
+          $("xpSpeed").textContent  = bonuses.speed ? `+${bonuses.speed}` : "0";
+          $("xpStreak").textContent = bonuses.streakBonus ? `+${bonuses.streakBonus}` : "0";
+          $("xpTotal").textContent  = `+${totalXP} XP`;
+
           const successOverlay = $("successOverlay");
           if (successOverlay) {
             successOverlay.classList.add("active");
-            
-            // Кнопка "Далі" у модалці успіху
+
+            // Кнопка "Далі"
             $("btnSuccessNext").onclick = () => {
               successOverlay.classList.remove("active");
               if (idx < refs.length - 1) goto(`/lesson/${course.id}/${mod.id}/${idx + 1}`);
               else goto(`/course/${course.id}`);
             };
+
+            // Кнопка "Переглянути мій код"
+            const btnStay = $("btnSuccessStay");
+            if (btnStay) {
+              btnStay.onclick = () => {
+                successOverlay.classList.remove("active");
+                $("btnNext").classList.add("unlocked"); // Розблоковуємо кнопку далі внизу екрана
+              };
+            }
           } else {
-             toast(`✅ SUCCESS! +${totalXP} XP`);
+            toast(`✅ SUCCESS! +${totalXP} XP`);
+            $("btnNext").classList.add("unlocked");
           }
 
         } else {
+          // --- ВАРІАНТ 2: Пройдено вперше, але відкрив рішення (Без XP) ---
           setCompleted(id, "no_xp");
+          
+          // Теж зберігаємо його варіант коду
+          state.user.solutions = state.user.solutions || {};
+          state.user.solutions[id] = myCodeMirror.getValue();
+          
           updateStreak(state.user);
           save();
           updateUserUI();
           toast("✅ Зараховано, але без XP (було відкрито рішення)");
+          $("btnNext").classList.add("unlocked");
         }
+        
       } else {
+        // --- ВАРІАНТ 3: Задача вже була пройдена раніше ---
+        
+        // Дозволяємо перезаписати збережене рішення на нове (раптом учень написав краще)
+        state.user.solutions = state.user.solutions || {};
+        state.user.solutions[id] = myCodeMirror.getValue();
+        save();
+        
         toast("✅ Уже зараховано");
         $("btnNext").classList.add("unlocked");
       }
@@ -1835,8 +1639,7 @@ function openLevelPicker(courseId, onDone) {
     };
 
     // breadcrumbs
-    document.querySelectorAll("[data-crumb-home]").forEach(el => el.onclick = () => goto("/home"));
-    document.querySelectorAll("[data-crumb-course]").forEach(el => el.onclick = () => goto(`/course/${course.id}`));
+    document.querySelectorAll("[data-crumb-home]").forEach(el => el.onclick = () => goto("/home"));    document.querySelectorAll("[data-crumb-course]").forEach(el => el.onclick = () => goto(`/course/${course.id}`));
 
     renderSidebarModuleTasks(course.id, mod.id, idx);
   }
@@ -1869,6 +1672,9 @@ function openLevelPicker(courseId, onDone) {
     goto("/home");
   }
 
+   // Закриваємо мобільне меню при будь-якому переході
+    document.querySelector(".sidebar")?.classList.remove("open");
+    document.querySelector(".sidebar-overlay")?.classList.remove("active");
   // ===========================
   // Events bind
   // ===========================
@@ -1923,32 +1729,6 @@ function openLevelPicker(courseId, onDone) {
     on($("btnTheme"), "click", toggleTheme);
     on($("btnThemeModal"), "click", toggleTheme);
 
-    on($("btnCopyExport"), "click", async () => {
-      $("exportData").value = safeB64Encode(state);
-      try {
-        await navigator.clipboard.writeText($("exportData").value);
-        toast("📋 Скопійовано");
-      } catch {
-        $("exportData").select();
-        document.execCommand("copy");
-        toast("📋 Скопійовано");
-      }
-    });
-
-    on($("btnDoImport"), "click", () => {
-      try {
-        const imported = safeB64Decode($("importData").value);
-        if (!imported || !imported.user || typeof imported.user.name !== "string") throw new Error("bad");
-        state = imported;
-        save();
-        toast("✅ Імпорт успішний");
-        closeSettings();
-        renderByRoute();
-      } catch {
-        toast("❌ Невірний код імпорту");
-      }
-    });
-
     on($("btnResetAll"), "click", () => {
       if (!confirm("Точно очистити прогрес?")) return;
       resetAll();
@@ -1981,7 +1761,26 @@ on($("btnGoogle"), "click", async () => {
     toast("❌ Не вдалося увійти через Google");
   }
 });
+   // Створення затемнення для мобільного меню
+    const sbOverlay = document.createElement("div");
+    sbOverlay.className = "sidebar-overlay";
+    document.body.appendChild(sbOverlay);
 
+    const btnMobileMenu = $("btnMobileMenu");
+    const sidebar = document.querySelector(".sidebar");
+
+    if (btnMobileMenu) {
+      btnMobileMenu.onclick = () => {
+        sidebar.classList.add("open");
+        sbOverlay.classList.add("active");
+      };
+    }
+
+    // Закриття по кліку на темний фон
+    sbOverlay.onclick = () => {
+      sidebar.classList.remove("open");
+      sbOverlay.classList.remove("active");
+    };
     window.addEventListener("hashchange", renderByRoute);
   }
 
@@ -2033,3 +1832,6 @@ applyTheme(state.settings.theme || "dark");
   renderByRoute();
 })();
 })();
+
+
+
