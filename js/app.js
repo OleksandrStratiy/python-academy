@@ -872,13 +872,72 @@ async function renderLeaderboard() {
   }
 
 
+// ===========================
+// Terminal INPUT (for Python input())
+// ===========================
+let _pendingInputResolve = null;
 
+function termAppend(text) {
+  const terminal = document.getElementById("terminal");
+  if (!terminal) return;
+  terminal.textContent += String(text ?? "");
+}
+
+function setTermStatus(text) {
+  const status = document.getElementById("termStatus");
+  if (status) status.textContent = text;
+}
+
+function enableTermInput(enable) {
+  const inp = document.getElementById("terminalInput");
+  if (!inp) return;
+  inp.disabled = !enable;
+  if (enable) {
+    inp.value = "";
+    inp.focus();
+  }
+}
+
+// підключаємо listener 1 раз
+(function bindTerminalInputOnce(){
+  let bound = false;
+  function bind(){
+    if (bound) return;
+    const inp = document.getElementById("terminalInput");
+    if (!inp) return;
+    bound = true;
+
+    inp.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      if (!_pendingInputResolve) return;
+
+      const val = inp.value;
+      // Ехо введення в термінал
+      termAppend(val + "\n");
+
+      const resolve = _pendingInputResolve;
+      _pendingInputResolve = null;
+
+      enableTermInput(false);
+      setTermStatus("Running...");
+
+      resolve(val);
+    });
+  }
+
+  // пробуємо привʼязатися одразу і ще раз після рендеру lesson view
+  bind();
+  window.addEventListener("DOMContentLoaded", bind);
+  // якщо DOM перерендерюється — нічого страшного, bind() просто не знайде інпут до появи
+  setTimeout(bind, 0);
+})();
   
 
 // ===========================
   // SKULPT PYTHON ENGINE
   // ===========================
   function runPythonSkulpt(code) {
+    
     return new Promise((resolve) => {
       let output = "";
       
@@ -898,15 +957,24 @@ async function renderLeaderboard() {
       Sk.configure({
         output: outf,
         read: builtinRead,
-        execLimit: 5000, // Захист від нескінченних циклів (5 секунд)
+        execLimit: 50000, // Захист від нескінченних циклів (5 секунд)
         __future__: Sk.python3, // <--- ВМИКАЄМО СУЧАСНИЙ PYTHON 3 🚀
         inputfun: function (promptMsg) {
-          return new Promise((resolveInput) => {
-            // Використовуємо браузерний prompt для input()
-            let val = window.prompt(promptMsg || "");
-            resolveInput(val !== null ? val : "");
-          });
-        }
+          
+        return new Promise((resolveInput) => {
+          // показати prompt у терміналі
+          const msg = (promptMsg || "").toString();
+          if (msg) termAppend(msg);
+
+          setTermStatus("Waiting input...");
+          enableTermInput(true);
+
+          // зберігаємо resolver, який спрацює по Enter
+          _pendingInputResolve = (val) => {
+            resolveInput(val !== null ? String(val) : "");
+          };
+        });
+      }
       });
 
       // Асинхронний запуск коду
@@ -1022,77 +1090,195 @@ async function renderLeaderboard() {
     return String(s ?? "").replace(/\s+/g, "");
   }
 
-  async function runTaskTestsSmart(task, code) {
-    const exec = await runPythonSkulpt(code);
-    const results = [];
-    const tests = task.tests || [];
-    const rawStdout = String(exec.stdout ?? "");
-    const safeCode = stripStringsAndComments(code);
+async function runTaskTestsSmart(task, code) {
+  const exec = await runPythonSkulpt(code);
+  const results = [];
+  const tests = task.tests || [];
+  const rawStdout = String(exec.stdout ?? "");
+  const safeCode = stripStringsAndComments(code);
 
-    for (const t of tests) {
-      const type = t.type || "stdoutEquals";
-      const name = t.name || type;
+  // ✅ Автовибір: коли треба дивитись raw (лапки / f-string / {var} / escape)
+  function shouldUseRaw(t) {
+    if (t.checkRaw === true) return true;
+    if (t.checkRaw === false) return false;
 
-      // ДОЗВІЛ ЗАЗИРАТИ В ЛАПКИ (для перевірки \n, \t тощо)
-      const targetCode = t.checkRaw ? String(code ?? "") : safeCode;
-      const targetCodeCompact = compactWS(targetCode);
+    const pattern = String(t.pattern ?? "");
+    const val = String(t.value ?? "");
+    const vals = Array.isArray(t.values) ? t.values.join(" ") : "";
 
-      if (type === "codeRegex" && t.flags === "g") {
-        const cnt = countRegexMatches(targetCode, t.pattern);
-        
-        // ВАЖЛИВО: Виправлена логіка для max: 1
-        const min = t.min !== undefined ? t.min : (t.max !== undefined ? 0 : 2);
-        const max = t.max !== undefined ? t.max : Infinity;
-        const pass = cnt >= min && cnt <= max;
-        
-        let reason = "OK";
-        if (!pass) {
-          if (cnt < min) reason = `Потрібно мінімум ${min} співпадінь`;
-          else reason = `Забагато співпадінь (максимум ${max})`;
-        }
-        
-        results.push({ 
-          name, pass, reason, 
-          want: min === max ? `${min} matches` : (max === Infinity ? `${min}+ matches` : `від ${min} до ${max} matches`), 
-          got: String(cnt) 
-        });
-        continue;
-      }
+    // якщо перевірка явно про лапки/форматовані рядки — краще raw
+    const s = pattern + " " + val + " " + vals;
+    return /['"]|\{|\}|\\n|\\t|f['"]/.test(s);
+  }
 
-      const stdoutTypes = new Set(["stdoutEquals","stdoutOneOf","stdoutRegex","stdoutContainsLines","stdoutUnorderedLines","stdoutNumber"]);
-      if (!exec.ok && stdoutTypes.has(type)) {
-        results.push({ name, pass: false, reason: `Помилка виконання: ${exec.error}`, want: t.value ?? "", got: rawStdout });
-        continue;
-      }
+  function targetCodeForTest(t) {
+    const raw = String(code ?? "");
+    const useRaw = shouldUseRaw(t);
+    return useRaw ? raw : safeCode;
+  }
 
-      if (type === "stdoutEquals") {
-        const normalize = t.normalize || "friendly";
-        const got = normalizeText(rawStdout, normalize);
-        const want = normalizeText(t.value, normalize);
-        const pass = got === want;
-        const hints = pass ? [] : detectOutputIssues(rawStdout, String(t.value ?? ""));
-        results.push({ name, pass, reason: pass ? "OK" : "Вивід не збігається", want, got, meta: { normalize, hints, gotRaw: rawStdout, wantRaw: String(t.value ?? "") } });
-        continue;
-      }
+  function compactWS(s) {
+    return String(s ?? "").replace(/\s+/g, "");
+  }
 
-      if (type === "codeIncludes") {
-        const needle = String(t.value ?? "");
-        const pass = targetCodeCompact.includes(compactWS(needle));
-        continue;
-      }
+  function countIncludes(haystack, needle) {
+    if (!needle) return 0;
+    let i = 0, c = 0;
+    while (true) {
+      const p = haystack.indexOf(needle, i);
+      if (p === -1) break;
+      c++;
+      i = p + needle.length;
+    }
+    return c;
+  }
 
-      if (type === "codeRegex") {
-        const pass = regexTest(targetCode, t.pattern, t.flags || "m");
-        results.push({ name, pass, reason: pass ? "OK" : "Код не відповідає шаблону", want: `/${t.pattern}/${t.flags || "m"}`, got: "" });
-        continue;
-      }
+  for (const t of tests) {
+    const type = t.type || "stdoutEquals";
+    const name = t.name || type;
 
-      results.push({ name, pass: true, reason: "OK", want: "", got: "" });
+    const targetCode = targetCodeForTest(t);
+    const targetCodeCompact = compactWS(targetCode);
+
+    // ---------- група stdout ----------
+    const stdoutTypes = new Set([
+      "stdoutEquals","stdoutOneOf","stdoutRegex","stdoutContainsLines","stdoutUnorderedLines","stdoutNumber"
+    ]);
+
+    if (!exec.ok && stdoutTypes.has(type)) {
+      results.push({
+        name,
+        pass: false,
+        reason: `Помилка виконання: ${exec.error}`,
+        want: t.value ?? "",
+        got: rawStdout
+      });
+      continue;
     }
 
-    const allPass = results.length ? results.every(r => r.pass) : true;
-    return { allPass, results, exec };
+    if (type === "stdoutEquals") {
+      const normalize = t.normalize || "friendly";
+      const got = normalizeText(rawStdout, normalize);
+      const want = normalizeText(t.value, normalize);
+      const pass = got === want;
+      const hints = pass ? [] : detectOutputIssues(rawStdout, String(t.value ?? ""));
+      results.push({
+        name, pass,
+        reason: pass ? "OK" : "Вивід не збігається",
+        want, got,
+        meta: { normalize, hints, gotRaw: rawStdout, wantRaw: String(t.value ?? "") }
+      });
+      continue;
+    }
+
+    // ---------- codeIncludes ----------
+    if (type === "codeIncludes") {
+      const needle = String(t.value ?? "");
+      const pass = targetCodeCompact.includes(compactWS(needle));
+      results.push({
+        name, pass,
+        reason: pass ? "OK" : "Код не містить потрібний фрагмент",
+        want: needle,
+        got: ""
+      });
+      continue;
+    }
+
+    // ✅ NEW: codeNotIncludes
+    if (type === "codeNotIncludes") {
+      const needle = String(t.value ?? "");
+      const pass = !targetCodeCompact.includes(compactWS(needle));
+      results.push({
+        name, pass,
+        reason: pass ? "OK" : "Знайдено заборонений фрагмент",
+        want: `NOT ${needle}`,
+        got: ""
+      });
+      continue;
+    }
+
+    // ✅ NEW: codeIncludesAll (масив)
+    if (type === "codeIncludesAll") {
+      const values = Array.isArray(t.values) ? t.values : [];
+      const missing = values.filter(v => !targetCodeCompact.includes(compactWS(v)));
+      const pass = missing.length === 0;
+      results.push({
+        name, pass,
+        reason: pass ? "OK" : "Не всі фрагменти знайдено",
+        want: values.join(" + "),
+        got: missing.length ? `missing: ${missing.join(", ")}` : ""
+      });
+      continue;
+    }
+
+    // ✅ NEW: codeOneOfIncludes (хоч один)
+    if (type === "codeOneOfIncludes") {
+      const values = Array.isArray(t.values) ? t.values : [];
+      const pass = values.some(v => targetCodeCompact.includes(compactWS(v)));
+      results.push({
+        name, pass,
+        reason: pass ? "OK" : "Не знайдено жодного з дозволених варіантів",
+        want: `oneOf: ${values.join(" | ")}`,
+        got: ""
+      });
+      continue;
+    }
+
+    // ✅ NEW: codeCountIncludes (рахує кількість входжень)
+    if (type === "codeCountIncludes") {
+      const needle = compactWS(String(t.value ?? ""));
+      const cnt = countIncludes(targetCodeCompact, needle);
+      const min = t.min ?? 1;
+      const max = t.max ?? Infinity;
+      const pass = cnt >= min && cnt <= max;
+      results.push({
+        name, pass,
+        reason: pass ? "OK" : "Кількість входжень не підходить",
+        want: (max === Infinity ? `>= ${min}` : `between ${min}..${max}`),
+        got: String(cnt)
+      });
+      continue;
+    }
+
+    // ---------- codeRegex ----------
+    if (type === "codeRegex" && t.flags === "g") {
+      const cnt = countRegexMatches(targetCode, t.pattern);
+      const min = t.min !== undefined ? t.min : (t.max !== undefined ? 0 : 2);
+      const max = t.max !== undefined ? t.max : Infinity;
+      const pass = cnt >= min && cnt <= max;
+
+      let reason = "OK";
+      if (!pass) {
+        if (cnt < min) reason = `Потрібно мінімум ${min} співпадінь`;
+        else reason = `Забагато співпадінь (максимум ${max})`;
+      }
+
+      results.push({
+        name, pass, reason,
+        want: min === max ? `${min} matches` : (max === Infinity ? `${min}+ matches` : `від ${min} до ${max} matches`),
+        got: String(cnt)
+      });
+      continue;
+    }
+
+    if (type === "codeRegex") {
+      const pass = regexTest(targetCode, t.pattern, t.flags || "m");
+      results.push({
+        name, pass,
+        reason: pass ? "OK" : "Код не відповідає шаблону",
+        want: `/${t.pattern}/${t.flags || "m"}`,
+        got: ""
+      });
+      continue;
+    }
+
+    // default
+    results.push({ name, pass: true, reason: "OK", want: "", got: "" });
   }
+
+  const allPass = results.length ? results.every(r => r.pass) : true;
+  return { allPass, results, exec };
+}
 
 function buildTerminalReport(runResult) {
     const { exec, results } = runResult;
@@ -1447,13 +1633,15 @@ let myCodeMirror = null;
     $("btnNext").classList.remove("unlocked");
     if (completionState(id)) $("btnNext").classList.add("unlocked");
 
-
+  enableTermInput(false);
+  _pendingInputResolve = null;
+  setTermStatus("Running...");
 // RUN
     $("btnRun").onclick = async () => {
       const code = myCodeMirror.getValue();
       
       // Показуємо користувачу, що код виконується
-      if (terminal) terminal.textContent = ">>> Виконання коду...";
+      if (terminal) terminal.textContent = ">>> Running...\n";
       
       // Чекаємо результатів від Skulpt
       const run = await runTaskTestsSmart(task, code);
