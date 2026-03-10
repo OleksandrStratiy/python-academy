@@ -42,18 +42,32 @@
   }
 
   async function cloudLoadState(userId) {
-    const { data, error } = await supa
-      .from("profile")
+    // Спочатку пробуємо завантажити з profiles
+    let res = await supa
+      .from("profiles")
       .select("progress")
       .eq("id", userId)
       .maybeSingle();
-    if (error) throw error;
-    return data?.progress ?? null;
+    if (res.data?.progress) return res.data.progress;
+
+    // Якщо немає в profiles, пробуємо зі старої таблиці progress
+    res = await supa
+      .from("progress")
+      .select("state")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (res.data?.state) {
+      // Міграція: зберігаємо в profiles
+      await supa.from("profiles").upsert({ id: userId, progress: res.data.state, updated_at: new Date().toISOString() });
+      return res.data.state;
+    }
+
+    return null;
   }
 
   async function cloudSaveState(userId, fullState) {
     const { error } = await supa
-      .from("profile")
+      .from("profiles")
       .upsert({ id: userId, progress: fullState, updated_at: new Date().toISOString() });
     if (error) throw error;
   }
@@ -1508,6 +1522,10 @@ on($("btnGoogle"), "click", async () => {
     const btnCloseSettings = $("btnCloseSettings");
     const btnLeaveClass = $("btnLeaveClass");
     const btnResetProgress = $("btnResetProgress");
+    const btnLogout = $("btnLogout");
+    const joinClassSection = $("joinClassSection");
+    const joinClassInput = $("joinClassInput");
+    const btnJoinClass = $("btnJoinClass");
 
     const currentRole = state.user?.role || "local";
     currentRoleEl.textContent = currentRole === "student" ? "Учень" : currentRole === "teacher" ? "Вчитель" : "Локальний";
@@ -1521,7 +1539,7 @@ on($("btnGoogle"), "click", async () => {
           const { data: { user } } = await supa.auth.getUser();
           if (!user) throw new Error("Користувач не знайдений");
 
-          await supa.from("profile").update({ class_code: null }).eq("id", user.id);
+          await supa.from("profiles").update({ class_code: null }).eq("id", user.id);
           state.user.class_code = null;
           save();
           toast("✅ Вийшли з класу");
@@ -1533,6 +1551,33 @@ on($("btnGoogle"), "click", async () => {
       };
     } else {
       btnLeaveClass.style.display = "none";
+    }
+
+    // Join class for students not in class
+    if (currentRole === "student" && !state.user?.class_code) {
+      joinClassSection.style.display = "block";
+      btnJoinClass.onclick = async () => {
+        const code = joinClassInput.value.trim().toUpperCase();
+        if (!code) {
+          toast("Введіть код класу");
+          return;
+        }
+        try {
+          const { data: { user } } = await supa.auth.getUser();
+          if (!user) throw new Error("Користувач не знайдений");
+
+          await supa.from("profiles").update({ class_code: code }).eq("id", user.id);
+          state.user.class_code = code;
+          save();
+          toast("Приєдналися до класу");
+          overlay.classList.remove("active");
+        } catch (error) {
+          toast("❌ Не вдалося приєднатися");
+          console.error(error);
+        }
+      };
+    } else {
+      joinClassSection.style.display = "none";
     }
 
     // Reset progress for local
@@ -1549,6 +1594,27 @@ on($("btnGoogle"), "click", async () => {
       };
     } else {
       btnResetProgress.style.display = "none";
+    }
+
+    // Logout for registered
+    if (supa) {
+      btnLogout.style.display = "block";
+      btnLogout.onclick = async () => {
+        try {
+          await supa.auth.signOut();
+          state.user = null;
+          save();
+          toast("Вийшли з акаунту");
+          overlay.classList.remove("active");
+          goto("/home");
+          renderByRoute();
+        } catch (error) {
+          toast("❌ Не вдалося вийти");
+          console.error(error);
+        }
+      };
+    } else {
+      btnLogout.style.display = "none";
     }
 
     let canChange = false;
@@ -1581,7 +1647,7 @@ on($("btnGoogle"), "click", async () => {
           const { data: { user } } = await supa.auth.getUser();
           if (!user) throw new Error("Користувач не знайдений");
 
-          await supa.from("profile").update({ role: newRole }).eq("id", user.id);
+          await supa.from("profiles").update({ role: newRole }).eq("id", user.id);
           state.user.role = newRole;
           if (newRole === "student") {
             // If changing to student, perhaps clear class_code or something, but keep
