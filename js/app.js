@@ -1512,162 +1512,118 @@ on($("btnGoogle"), "click", async () => {
   // ===========================
   // Settings
   // ===========================
+// --- ЛОГІКА НАЛАШТУВАНЬ ---
   function showSettings() {
     const overlay = $("settingsOverlay");
     if (!overlay) return;
 
-    const currentRoleEl = $("currentRole");
-    const btnChangeRole = $("btnChangeRole");
-    const changeRoleMessage = $("changeRoleMessage");
-    const btnCloseSettings = $("btnCloseSettings");
-    const btnLeaveClass = $("btnLeaveClass");
-    const btnResetProgress = $("btnResetProgress");
-    const btnLogout = $("btnLogout");
-    const joinClassSection = $("joinClassSection");
-    const joinClassInput = $("joinClassInput");
-    const btnJoinClass = $("btnJoinClass");
+    // 1. Заповнюємо картку профілю
+    const userName = state?.user?.name || "Гість";
+    $("setUserName").textContent = userName;
+    $("setAvatar").textContent = userName.charAt(0).toUpperCase(); // Перша літера імені
 
-    const currentRole = state.user?.role || "local";
-    currentRoleEl.textContent = currentRole === "student" ? "Учень" : currentRole === "teacher" ? "Вчитель" : "Локальний";
+    // 2. Визначаємо роль і клас для тексту
+    const roleText = $("setUserRole");
+    const classBox = $("settingsCurrentClassBox");
+    const classBadge = $("settingsClassBadge");
 
-    // Leave class logic
-    if (currentRole === "student" && state.user?.class_code) {
-      btnLeaveClass.style.display = "block";
-      btnLeaveClass.onclick = async () => {
-        if (!confirm("Ви дійсно хочете вийти з класу?")) return;
-        try {
-          const { data: { user } } = await supa.auth.getUser();
-          if (!user) throw new Error("Користувач не знайдений");
-
-          await supa.from("profiles").update({ class_code: null }).eq("id", user.id);
-          state.user.class_code = null;
-          save();
-          toast("✅ Вийшли з класу");
-          overlay.classList.remove("active");
-        } catch (error) {
-          toast("❌ Не вдалося вийти з класу");
-          console.error(error);
-        }
-      };
-    } else {
-      btnLeaveClass.style.display = "none";
-    }
-
-    // Join class for students not in class
-    if (currentRole === "student" && !state.user?.class_code) {
-      joinClassSection.style.display = "block";
-      btnJoinClass.onclick = async () => {
-        const code = joinClassInput.value.trim().toUpperCase();
-        if (!code) {
-          toast("Введіть код класу");
-          return;
-        }
-        try {
-          const { data: { user } } = await supa.auth.getUser();
-          if (!user) throw new Error("Користувач не знайдений");
-
-          await supa.from("profiles").update({ class_code: code }).eq("id", user.id);
-          state.user.class_code = code;
-          save();
-          toast("Приєдналися до класу");
-          overlay.classList.remove("active");
-        } catch (error) {
-          toast("❌ Не вдалося приєднатися");
-          console.error(error);
-        }
-      };
-    } else {
-      joinClassSection.style.display = "none";
-    }
-
-    // Reset progress for local
-    if (currentRole === "local") {
-      btnResetProgress.style.display = "block";
-      btnResetProgress.onclick = () => {
-        if (!confirm("Скинути весь прогрес? Це не можна скасувати.")) return;
-        state.user = null;
-        save();
-        toast("Прогрес скинуто");
-        overlay.classList.remove("active");
-        goto("/home");
-        renderByRoute();
-      };
-    } else {
-      btnResetProgress.style.display = "none";
-    }
-
-    // Logout for registered
-    if (supa) {
-      btnLogout.style.display = "block";
-      btnLogout.onclick = async () => {
-        try {
-          await supa.auth.signOut();
-          state.user = null;
-          save();
-          toast("Вийшли з акаунту");
-          overlay.classList.remove("active");
-          goto("/home");
-          renderByRoute();
-        } catch (error) {
-          toast("❌ Не вдалося вийти");
-          console.error(error);
-        }
-      };
-    } else {
-      btnLogout.style.display = "none";
-    }
-
-    let canChange = false;
-    let newRole = "";
-    let message = "";
-
-    if (currentRole === "teacher") {
-      canChange = true;
-      newRole = "student";
-      message = "Можете змінити на учня.";
-    } else if (currentRole === "student") {
-      if (state.user?.class_code) {
-        canChange = false;
-        message = "Не можете стати вчителем, бо приєднані до класу.";
+    if (state?.user?.role === "teacher") {
+      roleText.textContent = "👨‍🏫 Вчитель";
+      classBox.style.display = "none"; // Вчителю не треба виходити з класу тут
+    } else if (state?.user?.role === "student") {
+      const code = state?.user?.class_code;
+      if (code) {
+        roleText.textContent = `🎒 Учень`;
+        classBadge.textContent = code;
+        classBox.style.display = "block"; // Показуємо поточний клас
       } else {
-        canChange = true;
-        newRole = "teacher";
-        message = "Можете змінити на вчителя.";
+        roleText.textContent = "🎒 Учень (Без класу)";
+        classBox.style.display = "none";
       }
     } else {
-      message = "Локальні користувачі не можуть змінювати роль.";
+      roleText.textContent = "💻 Локальний гравець";
+      classBox.style.display = "none";
     }
 
-    if (canChange) {
-      btnChangeRole.style.display = "block";
-      btnChangeRole.textContent = `Стати ${newRole === "student" ? "учнем" : "вчителем"}`;
-      changeRoleMessage.textContent = message;
-      btnChangeRole.onclick = async () => {
-        try {
-          const { data: { user } } = await supa.auth.getUser();
-          if (!user) throw new Error("Користувач не знайдений");
-
-          await supa.from("profiles").update({ role: newRole }).eq("id", user.id);
-          state.user.role = newRole;
-          if (newRole === "student") {
-            // If changing to student, perhaps clear class_code or something, but keep
-          }
-          save();
-          toast(`✅ Роль змінено на ${newRole === "student" ? "учень" : "вчитель"}`);
-          overlay.classList.remove("active");
-        } catch (error) {
-          toast("❌ Не вдалося змінити роль");
-          console.error(error);
-        }
-      };
-    } else {
-      btnChangeRole.style.display = "none";
-      changeRoleMessage.textContent = message;
-    }
-
-    btnCloseSettings.onclick = () => overlay.classList.remove("active");
-
+    // Показуємо вікно
     overlay.classList.add("active");
+
+    // --- ОБРОБНИКИ ПОДІЙ (прив'язуємо лише один раз, щоб не плодити копії) ---
+    
+    // Закрити
+    $("btnCloseSettings").onclick = () => overlay.classList.remove("active");
+    
+    // Змінити тему
+    $("btnSettingsTheme").onclick = () => {
+      if (window.App.theme) window.App.theme.toggleTheme(state, window.myCodeMirror, save, toast);
+    };
+
+    // Приєднатися до класу / Змінити клас
+    $("btnSettingsJoinClass").onclick = async () => {
+      const btn = $("btnSettingsJoinClass");
+      const newCode = $("settingsClassInput").value.trim().toUpperCase();
+      
+      if (!newCode) return toast("⚠️ Введи код класу!");
+      if (state?.user?.role === "teacher") return toast("⚠️ Вчителі керують класами у Кабінеті!");
+
+      btn.textContent = "⏳...";
+      try {
+        const { data: { user } } = await supa.auth.getUser();
+        if (user) {
+          await supa.from("profiles").update({ class_code: newCode, role: "student" }).eq("id", user.id);
+        }
+        
+        state.user.class_code = newCode;
+        state.user.role = "student";
+        save();
+        
+        toast(`✅ Ти приєднався до класу ${newCode}`);
+        if (sidebarApi) sidebarApi.renderSidebarHome();
+        
+        // Оновлюємо вікно налаштувань одразу
+        showSettings();
+        $("settingsClassInput").value = "";
+      } catch (e) {
+        console.error(e);
+        toast("❌ Помилка оновлення");
+      } finally {
+        btn.textContent = "Ок";
+      }
+    };
+
+    // Покинути клас
+    $("btnSettingsLeaveClass").onclick = async () => {
+      if (!confirm("Дійсно хочеш покинути поточний клас?")) return;
+      
+      try {
+        const { data: { user } } = await supa.auth.getUser();
+        if (user) {
+          await supa.from("profiles").update({ class_code: null }).eq("id", user.id);
+        }
+        state.user.class_code = null;
+        save();
+        
+        toast("✅ Ти покинув клас");
+        if (sidebarApi) sidebarApi.renderSidebarHome();
+        showSettings(); // Оновлюємо вікно
+      } catch (e) {
+        toast("❌ Помилка");
+      }
+    };
+
+    // Вийти з акаунта (Logout)
+    $("btnLogout").onclick = async () => {
+      if (!confirm("Дійсно хочеш вийти з акаунта? Твій прогрес збережено у хмарі.")) return;
+      
+      try {
+        if (supa) await supa.auth.signOut();
+        window.App.storage.resetAll(); // Очищаємо локальний стейт
+        window.location.hash = "";     // Скидаємо роутинг
+        window.location.reload();      // Перезавантажуємо сторінку
+      } catch (e) {
+        toast("❌ Помилка при виході");
+      }
+    };
   }
 
 // ===========================
