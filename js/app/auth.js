@@ -123,7 +123,7 @@ window.App.authUI = (function () {
 
         // Зберігаємо профіль у БД
         const { error } = await supa
-          .from("profiles")
+          .from("profile")
           .upsert({
             id: user.id,
             full_name: user.user_metadata?.full_name || "User",
@@ -156,12 +156,15 @@ window.App.authUI = (function () {
     async function checkCloudProfile(authUser) {
       try {
         const { data: profile, error } = await supa
-          .from("profiles")
+          .from("profile")
           .select("role, class_code, full_name")
           .eq("id", authUser.id)
           .maybeSingle();
 
-        if (error) throw error;
+        if (error) {
+          console.error("Profile load error:", error);
+          return true; // assume complete
+        }
 
         if (!profile || !profile.role) {
           // Профілю ще немає (перший вхід) — показуємо вікно вибору
@@ -180,8 +183,8 @@ window.App.authUI = (function () {
         
         return true; // Auth flow complete
       } catch (e) {
-        console.error("Помилка перевірки профілю:", e);
-        return true; // Fallback, пропускаємо далі, щоб не заблокувати додаток
+        console.error("Profile check error:", e);
+        return true; // assume complete
       }
     }
 
