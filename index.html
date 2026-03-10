@@ -89,6 +89,24 @@
     </div>
   </div>
 
+  <div id="settingsOverlay" class="overlay">
+    <div class="modal" style="max-width: 420px; text-align: center;">
+      <h2 style="margin-bottom: 10px;">Налаштування</h2>
+      <p class="mutedish" style="margin-bottom: 24px; font-size: 14px;">Тут можна змінити роль, якщо потрібно.</p>
+
+      <div id="currentRoleDisplay" style="margin-bottom: 20px;">
+        Поточна роль: <strong id="currentRole">Учень</strong>
+      </div>
+
+      <button id="btnLeaveClass" class="btn-primary full" style="display: none; margin-bottom: 10px;">Вийти з класу</button>
+
+      <button id="btnChangeRole" class="btn-primary full" style="display: none;">Змінити роль</button>
+      <div id="changeRoleMessage" class="mutedish tiny" style="margin-top: 10px;"></div>
+
+      <button id="btnCloseSettings" class="full" style="margin-top: 20px; background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 12px; border-radius: 14px; cursor: pointer; font-weight: 700;">Закрити</button>
+    </div>
+  </div>
+
   <!-- APP -->
   <div id="app" class="layout">
 
