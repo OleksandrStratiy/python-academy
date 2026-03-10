@@ -123,7 +123,7 @@ window.App.authUI = (function () {
 
         // Зберігаємо профіль у БД
         const { error } = await supa
-          .from("profile")
+          .from("profiles")
           .upsert({
             id: user.id,
             full_name: user.user_metadata?.full_name || "User",
@@ -156,7 +156,7 @@ window.App.authUI = (function () {
     async function checkCloudProfile(authUser) {
       try {
         const { data: profile, error } = await supa
-          .from("profile")
+          .from("profiles")
           .select("role, class_code, full_name")
           .eq("id", authUser.id)
           .maybeSingle();
