@@ -47,7 +47,7 @@ window.App.authUI = (function () {
 
       state.user = {
         name,
-        role: "local", // Позначаємо, що це локальний гравець
+        role: "local",
         xp: 0,
         streak: 1,
         lastDay: null,
@@ -55,6 +55,7 @@ window.App.authUI = (function () {
         attempts: {},
         spoiled: {},
         drafts: {},
+        errorLogs: {},
       };
       
       updateStreak(state.user);
