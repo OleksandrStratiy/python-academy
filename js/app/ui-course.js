@@ -4,21 +4,41 @@ window.App.uiCourse = (function () {
   "use strict";
 
   function create(deps) {
-    const {
-      $,
-      DB,
-      LEVELS,
-      escapeHtml,
-      moduleProgress,
-      isModuleCompleted,
-      getCourseLevel,
-      setCourseLevel,
-      setActiveView,
-      viewModules,
-      renderSidebarModulesOnly,
-      goto,
-      toast
-    } = deps;
+const {
+  $,
+  DB,
+  LEVELS,
+  escapeHtml,
+  state,
+  moduleProgress,
+  isModuleCompleted,
+  getCourseLevel,
+  setCourseLevel,
+  setActiveView,
+  viewModules,
+  renderSidebarModulesOnly,
+  goto,
+  toast
+} = deps;
+function isModuleUnlocked(course, modules, index, moduleId) {
+  const role = state?.user?.role || "student";
+
+  // Вчитель бачить все
+  if (role === "teacher") return true;
+
+  const courseAccess = state?.user?.moduleAccess?.[course.id] || {};
+  const forced = courseAccess[moduleId];
+
+  // Примусове відкриття/закриття від вчителя
+  if (forced === "unlocked") return true;
+  if (forced === "locked") return false;
+
+  // Стандартна логіка по порядку
+  if (index === 0) return true;
+
+  const prev = modules[index - 1];
+  return isModuleCompleted(course.id, prev.id);
+}
 
     function renderCourseModules(courseId) {
       const course = DB.find(c => c.id === courseId);
@@ -84,16 +104,14 @@ window.App.uiCourse = (function () {
       const list = $("modulesList");
       const sortedModules = [...course.modules].sort((a, b) => (a.order || 999) - (b.order || 999));
 
-let prevCompleted = true;
-
 list.innerHTML = sortedModules.map((m, index) => {
   const mp = moduleProgress(course.id, m.id);
   const pct = mp.total ? Math.round((mp.done / mp.total) * 100) : 0;
 
   const completed = isModuleCompleted(course.id, m.id);
-  const unlocked = index === 0 ? true : prevCompleted;
+  const unlocked = isModuleUnlocked(course, sortedModules, index, m.id);
 
-  const html = `
+  return `
     <div class="card ${unlocked ? "" : "locked"}"
          data-open-module="${unlocked ? `${course.id}|${m.id}` : ""}"
          style="${unlocked ? "" : "opacity:.55; cursor:not-allowed;"}">
@@ -124,20 +142,17 @@ list.innerHTML = sortedModules.map((m, index) => {
       </div>
     </div>
   `;
-
-  prevCompleted = completed;
-  return html;
 }).join("");
 
       list.querySelectorAll("[data-open-module]").forEach(card => {
-        card.addEventListener("click", () => {
-          const value = card.getAttribute("data-open-module");
-          if (!value) return;
+  card.addEventListener("click", () => {
+    const value = card.getAttribute("data-open-module");
+    if (!value) return;
 
-          const [cid, mid] = value.split("|");
-          goto(`/lesson/${cid}/${mid}/0`);
-        });
-      });
+    const [cid, mid] = value.split("|");
+    goto(`/lesson/${cid}/${mid}/0`);
+  });
+});
 
       document.querySelectorAll("[data-crumb-home]").forEach(el => {
         el.onclick = () => goto("/home");
