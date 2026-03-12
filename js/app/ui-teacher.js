@@ -59,6 +59,37 @@ window.App.uiTeacher = (function () {
         return false;
       }
     }
+    async function setStudentModuleAccess(studentId, courseId, moduleId, value) {
+  if (!supa) return false;
+
+  const student = activeStudents.find(s => s.id === studentId);
+  if (!student) return false;
+
+  const progress = student.progress || {};
+  progress.user = progress.user || {};
+  progress.user.moduleAccess = progress.user.moduleAccess || {};
+  progress.user.moduleAccess[courseId] = progress.user.moduleAccess[courseId] || {};
+
+  progress.user.moduleAccess[courseId][moduleId] = value;
+
+  const { error } = await supa
+    .from("profiles")
+    .update({
+      progress,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", studentId);
+
+  if (error) {
+    console.error(error);
+    toast("❌ Не вдалося змінити доступ до модуля");
+    return false;
+  }
+
+  toast(value === "unlocked" ? "🔓 Модуль відкрито" : "🔒 Модуль заблоковано");
+  await loadStudents(activeClassCode);
+  return true;
+}
     function generateClassCode() {
   const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 
