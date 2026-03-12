@@ -94,17 +94,16 @@
         // fallback: якщо state.user ще не створений — створимо мінімального локального
         if (!state.user) {
         state.user = {
-  name: "User",
-  xp: 0,
-  streak: 1,
-  lastDay: null,
-  completed: {},
-  attempts: {},
-  spoiled: {},
-  drafts: {},
-  errorLogs: {},
-  moduleAccess: {},
-};
+          name,
+          xp: 0,
+          streak: 1,
+          lastDay: null,
+          completed: {},
+          attempts: {},
+          spoiled: {},
+          drafts: {},
+          errorLogs: {},
+        };
         save();
       }
       }
@@ -426,7 +425,6 @@ const uiCourseApi = window.App.uiCourse.create({
   DB,
   LEVELS,
   escapeHtml,
-  state,
   moduleProgress,
   isModuleCompleted,
   getCourseLevel,
@@ -1434,8 +1432,13 @@ let myCodeMirror = null;
       $("teacherContent").innerHTML = `<div style="color:var(--danger); padding: 20px;">Модуль ui-teacher.js не підключено!</div>`;
     }
   }
-
+function closeMobileMenu() {
+  document.querySelector(".sidebar")?.classList.remove("open");
+  document.querySelector(".sidebar-overlay")?.classList.remove("active");
+}
 function renderByRoute() {
+    closeMobileMenu();
+
     if (!location.hash) goto("/home");
 
     if (!state.user) {
@@ -1461,10 +1464,7 @@ function renderByRoute() {
     goto("/home");
   }
 
-   // Закриваємо мобільне меню при будь-якому переході
-    document.querySelector(".sidebar")?.classList.remove("open");
-    document.querySelector(".sidebar-overlay")?.classList.remove("active");
-  // ===========================
+    // ===========================
   // Events bind
   // ===========================
   function bindEvents() {
@@ -1489,7 +1489,7 @@ function renderByRoute() {
     });
 
     on($("btnTheme"), "click", toggleTheme);
-    on($("btnThemeModal"), "click", toggleTheme);
+
 
     on($("btnResetAll"), "click", () => {
       if (!confirm("Точно очистити прогрес?")) return;
@@ -1582,35 +1582,56 @@ if (false) on($("btnGoogle"), "click", async () => {
     // --- ОБРОБНИКИ ПОДІЙ ---
     $("btnCloseSettings").onclick = () => overlay.classList.remove("active");
     
-    $("btnSettingsTheme").onclick = () => {
-      if (window.App.theme) window.App.theme.toggleTheme(state, window.myCodeMirror, save, toast);
-    };
+$("btnSettingsTheme").onclick = () => {
+  if (window.App.theme) window.App.theme.toggleTheme(state, myCodeMirror, save, toast);
+};
 
     // Приєднатися до класу (Учень)
     const btnJoinClass = $("btnSettingsJoinClass");
-    if (btnJoinClass) {
-      btnJoinClass.onclick = async () => {
-        const newCode = $("settingsClassInput").value.trim().toUpperCase();
-        if (!newCode) return toast("⚠️ Введи код класу!");
+if (btnJoinClass) {
+  btnJoinClass.onclick = async () => {
+    const newCode = $("settingsClassInput").value.trim().toUpperCase();
+    if (!newCode) return toast("⚠️ Введи код класу!");
 
-        btnJoinClass.textContent = "⏳...";
-        try {
-          const { data: { user } } = await supa.auth.getUser();
-          if (user) await supa.from("profiles").update({ class_code: newCode }).eq("id", user.id);
-          
-          state.user.class_code = newCode;
-          save();
-          toast(`✅ Ти приєднався до класу ${newCode}`);
-          if (typeof sidebarApi !== "undefined") sidebarApi.renderSidebarHome();
-          showSettings();
-          $("settingsClassInput").value = "";
-        } catch (e) {
-          toast("❌ Помилка оновлення");
-        } finally {
-          btnJoinClass.textContent = "Ок";
-        }
-      };
+    btnJoinClass.textContent = "⏳...";
+    try {
+      const { data: classRow, error: classErr } = await supa
+        .from("classes")
+        .select("code, name")
+        .eq("code", newCode)
+        .maybeSingle();
+
+      if (classErr) throw classErr;
+      if (!classRow) {
+        toast("⚠️ Клас з таким кодом не знайдено");
+        return;
+      }
+
+      const { data: { user } } = await supa.auth.getUser();
+      if (user) {
+        const { error } = await supa
+          .from("profiles")
+          .update({ class_code: classRow.code })
+          .eq("id", user.id);
+
+        if (error) throw error;
+      }
+
+      state.user.class_code = classRow.code;
+      save();
+
+      toast(`✅ Ти приєднався до класу ${classRow.name}`);
+      if (typeof sidebarApi !== "undefined") sidebarApi.renderSidebarHome();
+      showSettings();
+      $("settingsClassInput").value = "";
+    } catch (e) {
+      console.error(e);
+      toast("❌ Помилка оновлення");
+    } finally {
+      btnJoinClass.textContent = "Ок";
     }
+  };
+}
 
     // Покинути клас (Учень)
     const btnLeaveClass = $("btnSettingsLeaveClass");
@@ -1731,39 +1752,10 @@ if (false) on($("btnGoogle"), "click", async () => {
       if (user) {
         try {
           const cloud = await cloudLoadState(user.id);
-if (cloud) {
-  const base = structuredClone(defaultState);
-
-  state.user = {
-    name: "User",
-    xp: 0,
-    streak: 1,
-    lastDay: null,
-    completed: {},
-    attempts: {},
-    spoiled: {},
-    drafts: {},
-    errorLogs: {},
-    moduleAccess: {},
-    ...(cloud.user || {})
-  };
-
-  state.settings = {
-    ...base.settings,
-    ...(cloud.settings || {})
-  };
-
-  state.leaderboard = Array.isArray(cloud.leaderboard)
-    ? cloud.leaderboard
-    : base.leaderboard;
-
-  state.courseLevels = {
-    ...base.courseLevels,
-    ...(cloud.courseLevels || {})
-  };
-
-  save();
-} else {
+          if (cloud) {
+            state = cloud;
+            save();
+          } else {
             // перший вхід: якщо локально вже є user — заливаємо, якщо ні — створимо
             if (!state.user) {
               const name =
@@ -1772,16 +1764,15 @@ if (cloud) {
                 "User";
 
               state.user = {
-  name,
-  xp: 0,
-  streak: 1,
-  lastDay: null,
-  completed: {},
-  attempts: {},
-  spoiled: {},
-  drafts: {},
-  errorLogs: {},
-  moduleAccess: {},
+              name,
+              xp: 0,
+              streak: 1,
+              lastDay: null,
+              completed: {},
+              attempts: {},
+              spoiled: {},
+              drafts: {},
+              errorLogs: {},
 };
             }
             save();
