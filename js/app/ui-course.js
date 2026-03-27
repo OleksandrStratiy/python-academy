@@ -18,22 +18,23 @@ const {
   viewModules,
   renderSidebarModulesOnly,
   goto,
-  toast
+  toast,
+  canOpenModule
 } = deps;
 function isModuleUnlocked(course, modules, index, moduleId) {
-  const role = state?.user?.role || "student";
+  if (typeof canOpenModule === "function") {
+    return canOpenModule(course.id, moduleId);
+  }
 
-  // Вчитель бачить все
+  const role = state?.user?.role || "student";
   if (role === "teacher") return true;
 
   const courseAccess = state?.user?.moduleAccess?.[course.id] || {};
   const forced = courseAccess[moduleId];
 
-  // Примусове відкриття/закриття від вчителя
   if (forced === "unlocked") return true;
   if (forced === "locked") return false;
 
-  // Стандартна логіка по порядку
   if (index === 0) return true;
 
   const prev = modules[index - 1];
