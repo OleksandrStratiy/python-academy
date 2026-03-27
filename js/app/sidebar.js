@@ -15,7 +15,10 @@ window.App.sidebar = (function () {
       completionState,
       moduleProgress,
       escapeHtml,
-      state // <--- ДОДАЛИ state СЮДИ
+      state,
+      canOpenModule,
+      canOpenTask,
+      toast
     } = deps;
 
     function isRoute(name) {
@@ -89,6 +92,8 @@ window.App.sidebar = (function () {
         return;
       }
 
+      const sortedModules = [...(course.modules || [])].sort((a, b) => (a.order || 999) - (b.order || 999));
+
       sb.innerHTML = `
         <button class="menu-btn" data-nav="home">
           <i class="ri-home-4-line"></i> Головна
@@ -102,12 +107,16 @@ window.App.sidebar = (function () {
           <i class="ri-equalizer-line"></i> Рівень курсу
         </button>
 
-        ${course.modules.map((m) => `
-          <button class="menu-btn" data-open-module="${course.id}|${m.id}">
-            <i class="${m.icon || "ri-folder-line"}" style="color:${m.color || "var(--text-dim)"}"></i>
-            ${escapeHtml(m.title)}
-          </button>
-        `).join("")}
+        ${sortedModules.map((m) => {
+          const unlocked = typeof canOpenModule === "function" ? canOpenModule(course.id, m.id) : true;
+          return `
+            <button class="menu-btn ${unlocked ? "" : "locked"}" data-open-module="${course.id}|${m.id}" data-locked="${unlocked ? "0" : "1"}" style="${unlocked ? "" : "opacity:.55;"}">
+              <i class="${m.icon || "ri-folder-line"}" style="color:${m.color || "var(--text-dim)"}"></i>
+              ${escapeHtml(m.title)}
+              ${unlocked ? "" : `<span style="margin-left:auto;">🔒</span>`}
+            </button>
+          `;
+        }).join("")}
 
         <button class="menu-btn" data-nav="leaderboard">
           <i class="ri-trophy-line"></i> Рейтинг
@@ -136,6 +145,10 @@ window.App.sidebar = (function () {
 
       sb.querySelectorAll("[data-open-module]").forEach((b) => {
         b.onclick = () => {
+          if (b.getAttribute("data-locked") === "1") {
+            if (toast) toast("🔒 Спочатку відкрий попередній модуль");
+            return;
+          }
           const [cid, mid] = b.getAttribute("data-open-module").split("|");
           goto(`/lesson/${cid}/${mid}/0`);
         };
@@ -164,18 +177,23 @@ window.App.sidebar = (function () {
         const done = !!cs;
         const noxp = cs === "no_xp";
         const active = idx === Number(taskIdx) ? "active" : "";
-        const icon = done ? "ri-checkbox-circle-fill" : "ri-checkbox-blank-circle-line";
+        const locked = typeof canOpenTask === "function" ? !canOpenTask(courseId, moduleId, origIdx) : false;
+        const icon = locked
+          ? "ri-lock-line"
+          : (done ? "ri-checkbox-circle-fill" : "ri-checkbox-blank-circle-line");
         const extraCls = `${done ? "done" : ""} ${noxp ? "noxp" : ""}`;
 
-        const tag = t.kind && t.kind !== "practice"
-          ? `<span class="task-tag exam">${escapeHtml(kindLabel(t.kind))}</span>`
-          : (noxp ? `<span class="task-tag noxp">Без XP</span>` : "");
+        const tag = locked
+          ? `<span class="task-tag" style="background:rgba(239,68,68,.14); color:#fca5a5;">Закрито</span>`
+          : (t.kind && t.kind !== "practice"
+              ? `<span class="task-tag exam">${escapeHtml(kindLabel(t.kind))}</span>`
+              : (noxp ? `<span class="task-tag noxp">Без XP</span>` : ""));
 
         return `
-          <div class="task-link ${active} ${extraCls}" data-open-task="${courseId}|${moduleId}|${idx}">
+          <div class="task-link ${active} ${extraCls}" data-open-task="${courseId}|${moduleId}|${idx}" data-locked="${locked ? "1" : "0"}" style="${locked ? "opacity:.55;" : ""}">
             <div class="left">
               <i class="${icon}"></i>
-              <span>${idx + 1}. ${escapeHtml(t.title)}</span>
+              <span>${escapeHtml(t.title)}</span>
             </div>
             ${tag}
           </div>
@@ -217,6 +235,10 @@ window.App.sidebar = (function () {
 
       sb.querySelectorAll("[data-open-task]").forEach((el) => {
         el.addEventListener("click", () => {
+          if (el.getAttribute("data-locked") === "1") {
+            if (toast) toast("🔒 Це завдання тимчасово заблоковане");
+            return;
+          }
           const [cid, mid, i] = el.getAttribute("data-open-task").split("|");
           goto(`/lesson/${cid}/${mid}/${i}`);
         });
