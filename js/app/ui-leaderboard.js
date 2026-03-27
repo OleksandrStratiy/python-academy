@@ -163,7 +163,7 @@ window.App.uiLeaderboard = (function () {
                   ${escapeHtml(u.name)}
                 </div>
                 <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
-                  <div class="tag">🔥 ${u.streak || 1} day streak</div>
+                  <div class="tag">🔥 ${u.streak || 1} дн. стріку</div>
                   ${renderTags(u, mode)}
                 </div>
               </div>
@@ -211,7 +211,13 @@ window.App.uiLeaderboard = (function () {
           if (profiles.error) throw profiles.error;
 
           rows = normalizeProfileRows(profiles.data, classesMap);
+
+          if (state.user?.role === "local") {
+            meId = "local-me";
+            rows = rows.concat(normalizeLocalRows());
+          }
         } else {
+          meId = "local-me";
           rows = normalizeLocalRows();
         }
 
