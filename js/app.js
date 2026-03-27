@@ -70,6 +70,45 @@
 
     return null;
   }
+  async function loadClassAccessForStudent(userId) {
+  if (!supa || !userId) return;
+
+  const { data: profile, error: profileError } = await supa
+    .from("profiles")
+    .select("class_code")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) {
+    console.error(profileError);
+    return;
+  }
+
+  const classCode = profile?.class_code || null;
+  state.user.class_code = classCode;
+
+  if (!classCode) {
+    state.user.classModuleAccess = {};
+    state.user.classTaskAccess = {};
+    save();
+    return;
+  }
+
+  const { data: classRow, error: classError } = await supa
+    .from("classes")
+    .select("module_access, task_access")
+    .eq("code", classCode)
+    .maybeSingle();
+
+  if (classError) {
+    console.error(classError);
+    return;
+  }
+
+  state.user.classModuleAccess = classRow?.module_access || {};
+  state.user.classTaskAccess = classRow?.task_access || {};
+  save();
+}
 
   async function cloudSaveState(userId, fullState) {
     const { error } = await supa
@@ -77,6 +116,7 @@
       .upsert({ id: userId, progress: fullState, updated_at: new Date().toISOString() });
     if (error) throw error;
   }
+
 
   let cloudTimer = null;
   function scheduleCloudSync(getStateFn) {
@@ -90,26 +130,34 @@
       } catch (e) {
         const user = await getSessionUser();
         console.error("Supabase load/save error:", e);
-      
-        // fallback: якщо state.user ще не створений — створимо мінімального локального
+
         if (!state.user) {
-        state.user = {
-          name,
-          xp: 0,
-          streak: 1,
-          lastDay: null,
-          completed: {},
-          attempts: {},
-          spoiled: {},
-          drafts: {},
-          errorLogs: {},
-        };
-        save();
-      }
+          const fallbackName =
+            user?.user_metadata?.full_name ||
+            user?.email?.split("@")?.[0] ||
+            "User";
+
+          state.user = {
+            name: fallbackName,
+            role: "local",
+            xp: 0,
+            streak: 1,
+            lastDay: null,
+            completed: {},
+            attempts: {},
+            spoiled: {},
+            drafts: {},
+            errorLogs: {},
+            moduleAccess: {},
+            taskAccess: {},
+            solutions: {}
+          };
+          save();
+        }
       }
     }, 900);
   }
-  
+
 
   // ===========================
   // DOM helpers
@@ -180,9 +228,7 @@
     user.lastDay = t;
   }
 
-  // ===========================
-  // Level
-  // ===========================
+
 
 
     // ===========================
@@ -268,7 +314,51 @@
     save();
   }
 
-  
+function canOpenModule(courseId, moduleId) {
+  const course = DB.find(c => c.id === courseId);
+  if (!course) return false;
+
+  const modules = [...(course.modules || [])].sort((a, b) => (a.order || 999) - (b.order || 999));
+  const index = modules.findIndex(m => m.id === moduleId);
+  if (index === -1) return false;
+
+  if ((state?.user?.role || "student") === "teacher") return true;
+
+  const studentForced = state?.user?.moduleAccess?.[courseId]?.[moduleId] || null;
+  if (studentForced === "unlocked") return true;
+  if (studentForced === "locked") return false;
+
+  const classForced = state?.user?.classModuleAccess?.[courseId]?.[moduleId] || null;
+  if (classForced === "unlocked") return true;
+  if (classForced === "locked") return false;
+
+  if (index === 0) return true;
+
+  const prev = modules[index - 1];
+  return isModuleCompleted(courseId, prev.id);
+}
+
+function canOpenTask(courseId, moduleId, origIdx) {
+  if ((state?.user?.role || "student") === "teacher") return true;
+
+  const studentTaskForced = state?.user?.taskAccess?.[courseId]?.[moduleId]?.[origIdx] || null;
+  if (studentTaskForced === "unlocked") return true;
+  if (studentTaskForced === "locked") return false;
+
+  const classTaskForced = state?.user?.classTaskAccess?.[courseId]?.[moduleId]?.[origIdx] || null;
+  if (classTaskForced === "unlocked") return true;
+  if (classTaskForced === "locked") return false;
+
+  const studentModuleForced = state?.user?.moduleAccess?.[courseId]?.[moduleId] || null;
+  if (studentModuleForced === "unlocked") return true;
+  if (studentModuleForced === "locked") return false;
+
+  const classModuleForced = state?.user?.classModuleAccess?.[courseId]?.[moduleId] || null;
+  if (classModuleForced === "unlocked") return true;
+  if (classModuleForced === "locked") return false;
+
+  return true;
+}
 
   // ===========================
   // Current pointers
@@ -378,7 +468,10 @@ const calculateBonuses = progressApi.calculateBonuses;
   completionState,
   moduleProgress,
   escapeHtml,
-  state
+  state,
+  canOpenModule,
+  canOpenTask,
+  toast
 });
 
 const isRoute = sidebarApi.isRoute;
@@ -425,6 +518,7 @@ const uiCourseApi = window.App.uiCourse.create({
   DB,
   LEVELS,
   escapeHtml,
+  state,
   moduleProgress,
   isModuleCompleted,
   getCourseLevel,
@@ -433,7 +527,8 @@ const uiCourseApi = window.App.uiCourse.create({
   viewModules,
   renderSidebarModulesOnly,
   goto,
-  toast
+  toast,
+  canOpenModule
 });
 
 const renderCourseModules = uiCourseApi.renderCourseModules;
@@ -459,6 +554,12 @@ function termAppend(text) {
   const terminal = document.getElementById("terminal");
   if (!terminal) return;
   terminal.textContent += String(text ?? "");
+}
+function setTerminalPromptLabel(text = "", active = false) {
+  const el = document.getElementById("terminalPromptLabel");
+  if (!el) return;
+  el.textContent = text || "";
+  el.classList.toggle("active", !!active);
 }
 
 function setTermStatus(text) {
@@ -486,21 +587,15 @@ function enableTermInput(enable) {
     bound = true;
 
     inp.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter") return;
-      if (!_pendingInputResolve) return;
+  if (e.key !== "Enter") return;
+  if (!_pendingInputResolve) return;
 
-      const val = inp.value;
-      // Ехо введення в термінал
-      termAppend(val + "\n");
+  const val = inp.value;
+  const resolve = _pendingInputResolve;
+  _pendingInputResolve = null;
 
-      const resolve = _pendingInputResolve;
-      _pendingInputResolve = null;
-
-      enableTermInput(false);
-      setTermStatus("Running...");
-
-      resolve(val);
-    });
+  resolve(val);
+});
   }
 
   // пробуємо привʼязатися одразу і ще раз після рендеру lesson view
@@ -532,28 +627,40 @@ function enableTermInput(enable) {
         return Sk.builtinFiles["files"][x];
       }
 
-      Sk.configure({
-        output: outf,
-        read: builtinRead,
-        execLimit: 50000, // Захист від нескінченних циклів (5 секунд)
-        __future__: Sk.python3, // <--- ВМИКАЄМО СУЧАСНИЙ PYTHON 3 🚀
-        inputfun: function (promptMsg) {
-          
-        return new Promise((resolveInput) => {
-          // показати prompt у терміналі
-          const msg = (promptMsg || "").toString();
-          if (msg) termAppend(msg);
+Sk.configure({
+  output: outf,
+  read: builtinRead,
+  execLimit: 50000,
+  __future__: Sk.python3,
+  inputfunTakesPrompt: true,
+  inputfun: function (promptMsg) {
+    return new Promise((resolveInput) => {
+      const msg = (promptMsg || "").toString();
 
-          setTermStatus("Waiting input...");
-          enableTermInput(true);
-
-          // зберігаємо resolver, який спрацює по Enter
-          _pendingInputResolve = (val) => {
-            resolveInput(val !== null ? String(val) : "");
-          };
-        });
+      if (msg) {
+        termAppend(msg);
+        output += msg;
       }
-      });
+
+      setTerminalPromptLabel(msg, true);
+      setTermStatus("Waiting input...");
+      enableTermInput(true);
+
+      _pendingInputResolve = (val) => {
+        const s = val !== null ? String(val) : "";
+
+        termAppend(s + "\n");
+        output += s + "\n";
+
+        setTerminalPromptLabel("", false);
+        enableTermInput(false);
+        setTermStatus("Running...");
+
+        resolveInput(s);
+      };
+    });
+  }
+});
 
       // Асинхронний запуск коду
       let myPromise = Sk.misceval.asyncToPromise(function() {
@@ -1005,6 +1112,12 @@ let myCodeMirror = null;
     const refs = visibleTaskRefs(courseId, moduleId);
     const ref = refs[idx];
 
+    if (course && mod && !canOpenModule(courseId, moduleId)) {
+      toast("🔒 Цей модуль поки заблокований");
+      goto(`/course/${courseId}`);
+      return;
+    }
+
     if (!course || !mod || !ref) {
       toast("Урок не знайдено (можливо, рівень не вибрано або в цьому рівні немає задач)");
       goto(`/course/${courseId}`);
@@ -1013,6 +1126,17 @@ let myCodeMirror = null;
 
     const task = ref.t;
     const origIdx = ref.origIdx;
+
+    if (!canOpenTask(courseId, moduleId, origIdx)) {
+      const firstOpenIdx = refs.findIndex(r => canOpenTask(courseId, moduleId, r.origIdx));
+      toast("🔒 Це завдання тимчасово заблоковане вчителем");
+      if (firstOpenIdx >= 0 && firstOpenIdx !== idx) {
+        goto(`/lesson/${courseId}/${moduleId}/${firstOpenIdx}`);
+      } else {
+        goto(`/course/${courseId}`);
+      }
+      return;
+    }
 
     currentCourse = course;
     currentModule = mod;
@@ -1069,7 +1193,7 @@ let myCodeMirror = null;
     };
     save();
     // hint
-    $("hintBox").innerText = task.hint || "";
+    $("hintBox").innerHTML = task.hint || "";
     $("hintBox").style.display = "none";
     $("btnHint").style.opacity = task.hint ? "1" : "0.5";
     $("btnHint").style.pointerEvents = task.hint ? "auto" : "none";
@@ -1221,7 +1345,7 @@ let myCodeMirror = null;
       btn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Running...`; // Змінюємо текст кнопки
 
       const code = myCodeMirror.getValue();
-      
+      setTerminalPromptLabel("", false);
       // Показуємо користувачу, що код виконується
       if (terminal) terminal.textContent = ">>> Running...\n";
       
@@ -1229,6 +1353,9 @@ let myCodeMirror = null;
       const run = await runTaskTestsSmart(task, code);
 
       if (terminal) terminal.innerHTML = buildTerminalReport(run);
+      // setTerminalPromptLabel("", false);
+enableTermInput(false);
+_pendingInputResolve = null;
 
       // ✅ ВСТАВЛЯЄМО РОЗБЛОКУВАННЯ ТУТ (одразу як код відпрацював)
       btn.disabled = false;
@@ -1400,6 +1527,7 @@ let myCodeMirror = null;
     document.querySelectorAll("[data-crumb-home]").forEach(el => el.onclick = () => goto("/home"));    document.querySelectorAll("[data-crumb-course]").forEach(el => el.onclick = () => goto(`/course/${course.id}`));
 
     renderSidebarModuleTasks(course.id, mod.id, idx);
+    setTerminalPromptLabel("Тест: prompt видно", true);
   }
 
   // ===========================
@@ -1765,6 +1893,7 @@ if (btnJoinClass) {
 
               state.user = {
               name,
+              role: "student",
               xp: 0,
               streak: 1,
               lastDay: null,
@@ -1773,6 +1902,13 @@ if (btnJoinClass) {
               spoiled: {},
               drafts: {},
               errorLogs: {},
+              moduleAccess: {},
+taskAccess: {},
+classModuleAccess: {},
+classTaskAccess: {},
+solutions: {},
+teacherClasses: [],
+teacherSchoolName: ""
 };
             }
             save();
@@ -1784,7 +1920,7 @@ if (btnJoinClass) {
           
           // Якщо профілю немає, authUI покаже вікно вибору ролі і зупинить подальше завантаження
           if (!isProfileComplete) return; 
-
+          await loadClassAccessForStudent(user.id);
         } catch {
           // якщо щось з хмарою не так — просто працюємо локально
         }
