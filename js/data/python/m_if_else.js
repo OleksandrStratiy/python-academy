@@ -25,8 +25,10 @@
           <p>Досі наші програми виконували всі команди підряд. Але справжня магія починається, коли програма може <b>обирати</b>, що їй робити залежно від вводу користувача!</p>
           <p>Для цього використовується команда <b style="color: #ef4444;"><code>if</code></b> (з англ. <i>якщо</i>).</p>
           
-          <p><b>Приклад:</b></p>
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">score = int(input("Бали: "))<br><b style="color: #ef4444;">if</b> score &gt; 50<b style="color: #ef4444;">:</b><br>    print("Ти переміг!")</div>
+          <p><b>Результат у терміналі (якщо введено 60):</b></p>
+          <div class="output-box">Бали: 60<br>Ти переміг!</div>
           
           <p>Комп'ютер дивиться на умову. Якщо вона правдива (True), він виконує код всередині. Якщо ні — просто ігнорує його і йде далі.</p>
           
@@ -66,6 +68,7 @@
           <p>В інших мовах програмування для виділення блоків коду використовують дужки <code>{}</code>. Але в Python використовують <b style="color: #3b82f6;">ВІДСТУПИ</b>.</p>
           <p>Усе, що має відступ ПІСЛЯ <code>if</code>, належить до цієї умови. Як тільки відступ зникає — умова закінчилась, і цей код виконається в будь-якому разі!</p>
           
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">lvl = int(input("Лвл: "))<br>if lvl &gt; 5:<br>    print("Цей код залежить від if")<br>print("А цей виконається ЗАВЖДИ")</div>
         `,
         desc: `
@@ -138,7 +141,7 @@
           <p>Іноді нам треба виконати код, якщо значення <b style="color: #ef4444;">НЕ ДОРІВНЮЄ</b> чомусь.</p>
           <p>Для цього використовується оператор <b style="color: #3b82f6;"><code>!=</code></b> (знак оклику і дорівнює). Знак оклику в програмуванні часто означає заперечення.</p>
           
-          <p><b>Приклад:</b></p>
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">status = input("Статус: ")<br>if status != "online":<br>    print("Підключення втрачено!")</div>
         `,
         desc: `
@@ -244,6 +247,7 @@
             💡 <b style="color: #0ea5e9;">Правило:</b> Після <code>else</code> НІКОЛИ не пишеться умова! Цей блок просто ловить абсолютно всі інші випадки, яким не підійшов <code>if</code>.
           </div>
           
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">if hp &gt; 0:<br>    print("Живий")<br><b style="color: #10b981;">else:</b><br>    print("Гру закінчено")</div>
         `,
         desc: `
@@ -277,6 +281,8 @@
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Рахуємо на льоту</h2>
           <p>Ми можемо робити математичні дії прямо всередині <code>if</code>, до знака порівняння. Python спочатку порахує формулу, а потім порівняє результат.</p>
+          
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">if wallet - price &gt;= 0:<br>    print("Грошей вистачає!")</div>
         `,
         desc: `
@@ -286,10 +292,6 @@
 
           <div class="task-condition">
             <b>Умова:</b> Запитай дві змінні: <code style="color: #0ea5e9;">cash</code> та <code style="color: #0ea5e9;">bank</code> (обидві через <code>int(input)</code>).<br>Напиши умову: якщо їхня сума (<code style="color: #0ea5e9;">cash + bank</code>) більша або дорівнює <code style="color: #0ea5e9;">150</code>, виведи <code style="color: #0ea5e9;">"Куплено!"</code>. Інакше — <code style="color: #0ea5e9;">"Мало грошей"</code>.
-          </div>
-
-          <div class="task-note">
-            <b>Важливо:</b> Зроби додавання прямо в рядку з <code>if</code>.
           </div>
         `,
         hint: `if cash + bank >= 150:`,
@@ -309,6 +311,9 @@
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Живий діалог</h2>
           <p>Умови стають по-справжньому цікавими, коли ми поєднуємо їх з текстом! Програма реагує на те, що ми їй пишемо.</p>
+          
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">ans = input("Ти готовий? ")<br>if ans == "Так":<br>    print("Поїхали!")</div>
         `,
         desc: `
           <div class="task-main">
@@ -342,6 +347,7 @@
           <p><code>if</code> перевіряє першу умову. <code>else</code> спрацьовує, якщо нічого не підійшло. А що робити посередині?</p>
           <p>Для цього є <b style="color: #3b82f6;"><code>elif</code></b> (скорочено від <i>else if</i> — інакше якщо). Ми можемо ставити їх скільки завгодно між <code>if</code> та <code>else</code>!</p>
           
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">color = input("Колір: ")<br>if color == "Червоний":<br>    print("Стій!")<br><b style="color: #3b82f6;">elif</b> color == "Жовтий":<br>    print("Готуйся!")<br>else:<br>    print("Йди!")</div>
         `,
         desc: `
@@ -378,6 +384,9 @@
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Як працює ліфт?</h2>
           <p>В одній структурі може бути багато блоків <code>elif</code>. Але пам'ятай: Python перевіряє їх згори донизу. Як тільки він знайде ПЕРШУ умову, яка є <code>True</code>, він виконає її код і <b>пропустить усі інші перевірки</b> нижче!</p>
+          
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">x = 10<br>if x &gt; 5:<br>    print("Більше 5")  <span style="color:gray;"># Спрацює це!</span><br>elif x &gt; 8:<br>    print("Більше 8")  <span style="color:gray;"># Сюди код навіть не дійде</span></div>
         `,
         desc: `
           <div class="task-main">
@@ -419,6 +428,9 @@
             Якщо користувач введе "Так", змінна <code style="color: #0ea5e9;">is_ready</code> стане <code style="color: #10b981;">True</code>. Якщо щось інше — <code style="color: #ef4444;">False</code>.<br>
             Далі ми просто пишемо: <code style="color: #0ea5e9;">if is_ready:</code> (БЕЗ ==).
           </div>
+          
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">is_vip = True<br>if is_vip:<br>    print("Проходь")</div>
         `,
         desc: `
           <div class="task-main">
@@ -430,7 +442,7 @@
           </div>
 
           <div class="task-note">
-            <b>Важливо:</b> Не використовуй <code>==</code> в самому if! Звикай до чистого коду.
+            <b>Важливо:</b> Не використовуй <code>==</code> в самому <code>if</code>! Звикай до чистого коду.
           </div>
         `,
         hint: `Твій код: if is_vip:\n    print("Вхід до VIP-зони")`,
@@ -450,6 +462,8 @@
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Короткий чи довгий?</h2>
           <p>Ми можемо перевіряти не лише самі змінні, а й результати функцій! Наприклад, перевірити довжину введеного тексту за допомогою <code>len()</code>.</p>
+          
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">name = input("Ім'я: ")<br>if len(name) &lt; 3:<br>    print("Занадто коротке ім'я!")</div>
         `,
         desc: `
@@ -483,6 +497,9 @@
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Класичний трюк</h2>
           <p>Як комп'ютер розуміє, чи число парне (2, 4, 100)? Дуже просто: він ділить його на 2 і дивиться на <b style="color: #3b82f6;">остачу (<code>%</code>)</b>.</p>
           <p>Якщо остача від ділення на 2 дорівнює нулю (<code>num % 2 == 0</code>), значить число ділиться націло — воно парне!</p>
+          
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">if 10 % 2 == 0:<br>    print("Парне")</div>
         `,
         desc: `
           <div class="task-main">
@@ -494,7 +511,7 @@
           </div>
 
           <div class="task-note">
-            <b>Важливо:</b> Ми використовуємо подвійне <code>==</code> для перевірки остачі.
+            <b>Важливо:</b> Ми використовуємо подвійне <code>==</code> для порівняння остачі з нулем.
           </div>
         `,
         hint: `if num % 2 == 0:`,
@@ -507,38 +524,39 @@
       },
 
       {
-        title: "🪆 Вкладені умови (Nested if)",
+        title: "🪤 Пастка: if чи elif?",
         xp: 155,
         kind: "practice",
         difficulty: "Junior",
         theory: `
-          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Умова всередині умови</h2>
-          <p>Що, якщо після однієї успішної перевірки нам треба зробити ще одну уточнюючу? Ми можемо написати <code>if</code> всередині іншого <code>if</code>! Для цього треба зробити <b style="color: #f59e0b;">подвійний відступ</b>.</p>
-          <div class="code-box">if door == "Відкрито":<br>    print("Входимо")<br>    if box == "Золото":<br>        print("Ура!")</div>
+          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Два питання чи одне?</h2>
+          <p>Якщо ти напишеш кілька <code>if</code> підряд, комп'ютер перевірить <b>КОЖЕН ІЗ НИХ</b>, навіть якщо перший вже спрацював. А от <code>elif</code> працює інакше: якщо спрацював перший <code>if</code>, то всі <code>elif</code> нижче просто ігноруються!</p>
+          
+          <p><b>Приклад з двома if (спрацюють обидва!):</b></p>
+          <div class="code-box">x = 10<br>if x &gt; 5:<br>    print("Більше 5")<br>if x &gt; 8:<br>    print("Більше 8")</div>
         `,
         desc: `
           <div class="task-main">
-            <p>Гравець спочатку перевіряє двері, а потім, якщо вони відкриті, заглядає у скриню.</p>
+            <p>Герой знайшов скриню. Програма має нагородити його за високий рівень. За рівень 5 він отримує Меч. А якщо рівень 10 або більше, він має отримати <b>І Меч, І Щит</b>!</p>
           </div>
 
           <div class="task-condition">
-            <b>Умова:</b><br>
-            1. Запитай <code style="color: #0ea5e9;">door = input("Двері: ")</code>.<br>
-            2. Напиши: <code style="color: #0ea5e9;">if door == "Відкрито":</code> і виведи <code style="color: #0ea5e9;">"Входимо"</code>.<br>
-            3. ПРЯМО ВСЕРЕДИНІ (з відступом) запитай: <code style="color: #0ea5e9;">box = input("Скриня: ")</code>.<br>
-            4. Додай другий <code style="color: #0ea5e9;">if box == "Золото":</code> (з відступом), який виведе <code style="color: #0ea5e9;">"Ура!"</code> (з подвійним відступом).
+            <b>Умова:</b> Запитай <code style="color: #0ea5e9;">lvl = int(input("Рівень: "))</code>.<br>
+            Напиши перший <code>if</code>: якщо рівень більший або дорівнює 5, виведи <code>"Меч"</code>.<br>
+            Напиши другий <b>НЕЗАЛЕЖНИЙ</b> <code>if</code> (без <code>elif</code>!): якщо рівень більший або дорівнює 10, виведи <code>"Щит"</code>.
           </div>
 
           <div class="task-note">
-            <b>Важливо:</b> Другий запит <code>input</code> відбувається ТІЛЬКИ якщо двері відкрито. Тому він теж має відступ!
+            <b>Важливо:</b> Обидва <code>if</code> мають починатися з самого краю екрана (без відступів).
           </div>
         `,
-        hint: `if door == "Відкрито":\n    print("Входимо")\n    box = input("Скриня: ")\n    if box == "Золото":\n        print("Ура!")`,
-        expected: `Двері: Відкрито\nВходимо\nСкриня: Золото\nУра!`,
+        hint: `Напиши два окремі блоки if. Не використовуй elif!`,
+        expected: `Рівень: 10\nМеч\nЩит`,
         tests: [
-          { type: "codeRegex", name: "Зовнішній if", pattern: "if\\s+door\\s*==\\s*['\"]Відкрито['\"]\\s*:" },
-          { type: "codeRegex", name: "Вкладений запит скрині", pattern: "\\n\\s+box\\s*=\\s*input" },
-          { type: "codeRegex", name: "Вкладений if (подвійний відступ)", pattern: "\\n\\s+if\\s+box\\s*==\\s*['\"]Золото['\"]\\s*:\\s*\\n\\s{4,}print", flags: "s" }
+          { type: "codeRegex", name: "Ввід як int", pattern: "lvl\\s*=\\s*int\\s*\\(\\s*input" },
+          { type: "codeRegex", name: "Перший if", pattern: "if\\s+lvl\\s*>=\\s*5\\s*:" },
+          { type: "codeRegex", name: "Другий if (без elif)", pattern: "\\nif\\s+lvl\\s*>=\\s*10\\s*:" },
+          { type: "codeRegex", name: "Без elif та else", pattern: "elif|else", flags: "g", max: 0 }
         ]
       },
 
@@ -641,56 +659,43 @@
       // ==========================================
 
       {
-        title: "🐉 БОС (Junior): Кімната рішень",
+        title: "🐉 БОС (Junior): Розподіл луту",
         xp: 800,
         kind: "boss",
         difficulty: "Junior",
         theory: `
           <h2 style="color: #ef4444; font-size: 18px; margin-bottom: 10px;">Фінальний іспит: Логіка гри</h2>
-          <p>Напиши класичний текстовий квест. Перевір своє вміння будувати вкладені умови (if всередині if)!</p>
+          <p>Напиши класичний класифікатор здобичі без жодних вкладених умов!</p>
         `,
         desc: `
           <div class="task-main">
-            <p>Текстова RPG. Гравець обирає шлях у підземеллі і б'ється з монстрами, маючи певну кількість сили. Усі події залежать від його рішень.</p>
+            <p>Після битви герой отримує бали здобичі. Залежно від суми він отримує певний ранг.</p>
           </div>
 
           <div class="task-condition">
             <b>Умови місії:</b><br>
-            1. Запитай напрямок: <code style="color: #0ea5e9;">way = input("Куди йдемо? ")</code>.<br>
-            2. Якщо він пішов <code>"Ліво"</code>, виведи <code>"Безпечна кімната"</code>.<br>
-            3. Якщо (elif) він пішов <code>"Право"</code>, виведи <code>"Тут дракон!"</code> і <b>відразу запитай</b> його силу (змінна <code style="color: #0ea5e9;">power</code>, не забудь про int!).<br>
-            4. Всередині "Право": якщо сила більша за 10, виведи <code>"Ти переміг!"</code>. Інакше (else) — <code>"Ти програв"</code>.<br>
-            5. Якщо гравець ввів інший напрямок (зовнішній else), виведи <code>"Невідомо"</code>.
-          </div>
-
-          <div class="task-note">
-            <b>Важливо:</b> Вкладені <code>if / else</code> (пункт 4) повинні мати <b>подвійний відступ</b>!
+            1. Запитай: <code style="color: #0ea5e9;">gold = int(input("Золото: "))</code>.<br>
+            2. Запитай: <code style="color: #0ea5e9;">xp = int(input("Досвід: "))</code>.<br>
+            3. Створи змінну <code style="color: #0ea5e9;">score</code>, яка дорівнює сумі золота та досвіду.<br>
+            4. Виведи текст <code style="color: #0ea5e9;">"Твій бал:"</code> та змінну <code style="color: #0ea5e9;">score</code> (через кому).<br>
+            5. Напиши ланцюг <code>if / elif / else</code> для змінної <code>score</code>:<br>
+               - Якщо <code>score &gt;= 100</code>, виведи <code>"Ранг: S"</code>.<br>
+               - Якщо <code>score &gt;= 50</code>, виведи <code>"Ранг: A"</code>.<br>
+               - Інакше виведи <code>"Ранг: B"</code>.
           </div>
         `,
-        hint: `Структура боса:
-if way == "Ліво":
-    print(...)
-elif way == "Право":
-    print(...)
-    power = int(...)
-    if power > 10:
-        print(...)
-    else:
-        print(...)
-else:
-    print(...)`,
-        expected: `Куди йдемо? Право\nТут дракон!\nСили: 15\nТи переміг!`,
+        hint: `gold = int(input...)\nxp = int(input...)\nscore = gold + xp\nprint("Твій бал:", score)\nif score >= 100:\n...`,
+        expected: `Золото: 60\nДосвід: 50\nТвій бал: 110\nРанг: S`,
         tests: [
-          { type: "codeRegex", name: "Перевірка Ліво/Право", pattern: "if\\s+way\\s*==\\s*['\"]Ліво['\"]\\s*:.*elif\\s+way\\s*==\\s*['\"]Право['\"]\\s*:", flags: "s" },
-          { type: "codeRegex", name: "Вкладений ввід сили (int)", pattern: "elif\\s+way\\s*==\\s*['\"]Право['\"]\\s*:\\s*\\n\\s+print.*power\\s*=\\s*int\\s*\\(\\s*input", flags: "s" },
-          { type: "codeRegex", name: "Вкладена перевірка сили", pattern: "\\n\\s{4,}if\\s+power\\s*>\\s*10\\s*:\\s*\\n\\s{8,}print.*\\n\\s{4,}else\\s*:\\s*\\n\\s{8,}print", flags: "s" },
-          { type: "codeRegex", name: "Глобальний else", pattern: "\\nelse\\s*:\\s*\\n\\s{4,}print\\s*\\(\\s*['\"]Невідомо['\"]\\s*\\)" }
+          { type: "codeRegex", name: "Змінні gold та xp", pattern: "gold\\s*=\\s*int.*xp\\s*=\\s*int", flags: "s" },
+          { type: "codeRegex", name: "Обчислення score", pattern: "score\\s*=\\s*gold\\s*\\+\\s*xp" },
+          { type: "codeRegex", name: "Вивід score через кому", pattern: "print\\s*\\(\\s*['\"]Твій бал:['\"]\\s*,\\s*score\\s*\\)", checkRaw: true },
+          { type: "codeRegex", name: "Структура if/elif/else", pattern: "if\\s+score\\s*>=\\s*100\\s*:.*elif\\s+score\\s*>=\\s*50\\s*:.*else\\s*:", flags: "s" },
+          { type: "codeRegex", name: "Жодних вкладених умов", pattern: "\\n\\s{4,}if\\s+", flags: "g", max: 0 }
         ]
       },
 
-    
-
-// ==========================================
+      // ==========================================
       // 🟡 РІВЕНЬ: MIDDLE (Логічні оператори та Перевірки)
       // ==========================================
 
@@ -704,8 +709,10 @@ else:
           <p>Іноді однієї перевірки замало. Наприклад, щоб отримати кредит, ти маєш бути повнолітнім <b>І</b> мати гарну зарплату.</p>
           <p>Щоб об'єднати дві умови, ми використовуємо логічний оператор <b style="color: #10b981;"><code>and</code></b> (та). Програма виконає код лише тоді, коли <b>ОБИДВІ</b> умови будуть <code>True</code>.</p>
           
-          <p><b>Приклад:</b></p>
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">if age &gt;= 18 <b style="color: #10b981;">and</b> money &gt; 1000:<br>    print("Кредит схвалено")</div>
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">Кредит схвалено</div>
         `,
         desc: `
           <div class="task-main">
@@ -743,8 +750,10 @@ else:
           <p>Якщо оператор <code>and</code> дуже строгий, то оператор <b style="color: #3b82f6;"><code>or</code></b> (або) — добрий.</p>
           <p>Він виконає код, якщо <b>ХОЧА Б ОДНА</b> з умов дорівнює <code>True</code>. Інша може бути хибною, це не страшно.</p>
           
-          <p><b>Приклад:</b></p>
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">if day == "Субота" <b style="color: #3b82f6;">or</b> day == "Неділя":<br>    print("Вихідний!")</div>
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">Вихідний!</div>
         `,
         desc: `
           <div class="task-main">
@@ -781,8 +790,10 @@ else:
           <p>Оператор <b style="color: #ef4444;"><code>not</code></b> (не) просто перевертає логічне значення догори дриґом. <code>True</code> стає <code>False</code>, і навпаки.</p>
           <p>Це дуже зручно, коли ми хочемо перевірити, чи чогось <b>НЕ</b> сталося, або змінна <b>НЕ</b> має певного статусу.</p>
           
-          <p><b>Приклад:</b></p>
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">is_banned = False<br>if <b style="color: #ef4444;">not</b> is_banned:<br>    print("Ласкаво просимо на сервер!")</div>
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">Ласкаво просимо на сервер!</div>
         `,
         desc: `
           <div class="task-main">
@@ -820,7 +831,10 @@ else:
             💡 <b>Правило дужок:</b> Оператор <code>and</code> завжди виконується ПЕРШИМ, як множення в математиці. Щоб <code>or</code> виконавсь раніше, треба брати його в <b>круглі дужки</b>.
           </div>
           
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">if (age &gt;= 18 or has_permission) <b style="color: #3b82f6;">and</b> money &gt;= 50:<br>    print("Гру куплено")</div>
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">Гру куплено</div>
         `,
         desc: `
           <div class="task-main">
@@ -857,8 +871,10 @@ else:
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Чи є це тут?</h2>
           <p>Щоб перевірити, чи є якась літера або слово всередині іншого, більшого тексту, не треба писати складних формул. Python має крутий оператор <b style="color: #10b981;"><code>in</code></b> (в/у).</p>
           
-          <p><b>Приклад:</b></p>
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">if "кот" <b style="color: #10b981;">in</b> "Теракотовий":<br>    print("Знайдено!")</div>
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">Знайдено!</div>
         `,
         desc: `
           <div class="task-main">
@@ -890,7 +906,11 @@ else:
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Чистота даних</h2>
           <p>Логічно, що ми можемо перевірити і зворотне: чи <b>ВІДСУТНІЙ</b> шматок тексту у змінній. Для цього ми комбінуємо два знайомі нам оператори: <b style="color: #ef4444;"><code>not in</code></b>.</p>
+          
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">if " " <b style="color: #ef4444;">not in</b> password:<br>    print("Пароль не має пробілів. Супер!")</div>
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">Пароль не має пробілів. Супер!</div>
         `,
         desc: `
           <div class="task-main">
@@ -924,7 +944,10 @@ else:
           <p>Що, якщо нам треба перевірити, чи дорівнює статус <i>одному з багатьох</i> варіантів?</p>
           <p>Замість того, щоб писати довжелезний код <code>if role == "Admin" or role == "Модер" or role == "Власник":</code>, ми можемо створити <b>список</b> у квадратних дужках і перевірити через <code>in</code>!</p>
           
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">if role <b style="color: #3b82f6;">in</b> ["Admin", "Модер", "Власник"]:<br>    print("Доступ до налаштувань відкрито")</div>
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">Доступ до налаштувань відкрито</div>
         `,
         desc: `
           <div class="task-main">
@@ -957,7 +980,10 @@ else:
           <p>У модулі про типи ми вчили, що число <code>0</code> і порожній текст <code>""</code> — це <code>False</code> (Брехня). А будь-яке число чи текст з символами — це <code>True</code>.</p>
           <p>Завдяки цьому ми можемо писати супер-короткі умови! Якщо ми просто напишемо <code>if name:</code>, Python зрозуміє це як "Якщо ім'я <b>НЕ ПОРОЖНЄ</b>".</p>
           
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">money = 0<br>if money:<br>    print("Гроші є!")<br>else:<br>    print("Ти банкрут") <span style="color:gray;"># Спрацює це, бо 0 - це False</span></div>
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">Ти банкрут</div>
         `,
         desc: `
           <div class="task-main">
@@ -989,6 +1015,11 @@ else:
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Методи дають відповіді</h2>
           <p>Такі методи як <code>.endswith()</code> або <code>.isdigit()</code> завжди повертають <code>True</code> або <code>False</code>. Тому вони ідеально підходять для того, щоб ставити їх прямо в умову <code>if</code> замість змінних!</p>
+          
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">file = "image.png"<br>if file.endswith(".png"):<br>    print("Це картинка")</div>
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">Це картинка</div>
         `,
         desc: `
           <div class="task-main">
@@ -1021,8 +1052,10 @@ else:
           <p>В інших мовах, щоб перевірити чи число знаходиться між 10 і 20, треба писати так: <code>if x &gt;= 10 and x &lt;= 20:</code>.</p>
           <p>Але Python розумний! Він дозволяє писати математичні діапазоні так само, як у школі на уроці алгебри.</p>
           
-          <p><b>Приклад:</b></p>
-          <div class="code-box">if 10 &lt;= x &lt;= 20:<br>    print("Число в межах норми")</div>
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">x = 15<br>if 10 &lt;= x &lt;= 20:<br>    print("Число в межах норми")</div>
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">Число в межах норми</div>
         `,
         desc: `
           <div class="task-main">
@@ -1055,6 +1088,9 @@ else:
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Захист від дурня</h2>
           <p>Люди постійно пишуть з помилками: великими літерами, ставлять випадкові пробіли. Якщо ти напишеш <code>if ans == "так":</code>, а людина введе <code>" ТАК "</code> — програма скаже False!</p>
           <p>Щоб цього уникнути, ми маємо <b>нормалізувати</b> ввід: відрізати пробіли (<code>strip</code>) і зробити все маленьким (<code>lower</code>).</p>
+          
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">ans = input("Ти готовий? ").strip().lower()<br>if ans == "так":<br>    print("Поїхали")</div>
         `,
         desc: `
           <div class="task-main">
@@ -1129,6 +1165,7 @@ else:
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Розумний Python</h2>
           <p>Оператор <code>and</code> має суперсилу — він <b style="color: #3b82f6;">"лінивий"</b>. Python читає умови зліва направо. Якщо перша умова перед <code>and</code> є <code>False</code> (Брехня), Python відразу розуміє, що все речення провалилось, і <b style="color: #ef4444;">НАВІТЬ НЕ ЧИТАЄ</b> другу частину!</p>
           
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">x = 0<br>if x != 0 <b style="color: #10b981;">and</b> (100 / x) &gt; 5:<br>    print("Ок")</div>
           <p>Оскільки на нуль ділити не можна, друга частина викликала б помилку. Але Python побачив, що <code>x != 0</code> це False, і просто проігнорував небезпечне ділення!</p>
         `,
@@ -1154,36 +1191,39 @@ else:
       },
 
       {
-  title: "🔎 Множинні перевірки методів",
-  xp: 260,
-  kind: "practice",
-  difficulty: "Middle",
-  theory: `
-    <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Подвійний фільтр</h2>
-    <p>Ми можемо комбінувати перевірки методів рядків та перевірку довжини через оператор <code>and</code>, щоб створити ідеальний фільтр для введених даних.</p>
-  `,
-  desc: `
-    <div class="task-main">
-      <p>Система банку перевіряє ПІН-код. Він має складатися ТІЛЬКИ з цифр і мати довжину РІВНО 4 символи.</p>
-    </div>
+        title: "🔎 Множинні перевірки методів",
+        xp: 260,
+        kind: "practice",
+        difficulty: "Middle",
+        theory: `
+          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Подвійний фільтр</h2>
+          <p>Ми можемо комбінувати перевірки методів рядків та перевірку довжини через оператор <code>and</code>, щоб створити ідеальний фільтр для введених даних.</p>
+          
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">if word.isalpha() and len(word) &gt; 3:<br>    print("Правильне слово")</div>
+        `,
+        desc: `
+          <div class="task-main">
+            <p>Система банку перевіряє ПІН-код. Він має складатися ТІЛЬКИ з цифр і мати довжину РІВНО 4 символи.</p>
+          </div>
 
-    <div class="task-condition">
-      <b>Умова:</b> Запитай: <code style="color: #0ea5e9;">pin = input("Пін: ")</code>.<br>
-      Напиши умову: якщо <code style="color: #0ea5e9;">pin.isdigit()</code> <b>І</b> довжина <code>pin</code> дорівнює 4, виведи <code>"Доступ дозволено"</code>. Інакше — <code>"Помилка формату"</code>.
-    </div>
+          <div class="task-condition">
+            <b>Умова:</b> Запитай: <code style="color: #0ea5e9;">pin = input("Пін: ")</code>.<br>
+            Напиши умову: якщо <code style="color: #0ea5e9;">pin.isdigit()</code> <b>І</b> довжина <code>pin</code> дорівнює 4, виведи <code>"Доступ дозволено"</code>. Інакше — <code>"Помилка формату"</code>.
+          </div>
 
-    <div class="task-note">
-      <b>Важливо:</b> Оскільки ми використовуємо <code>len(pin)</code> та <code>.isdigit()</code>, перетворювати пін-код на <code>int</code> не треба.
-    </div>
-  `,
-  hint: `if pin.isdigit() and len(pin) == 4:`,
-  expected: `Пін: 1234\nДоступ дозволено`,
-  tests: [
-    { type: "codeRegex", name: "Запит тексту", pattern: "pin\\s*=\\s*input\\s*\\(" },
-    { type: "codeRegex", name: "Комбінована перевірка", pattern: "if\\s+pin\\.isdigit\\s*\\(\\)\\s+and\\s+len\\s*\\(\\s*pin\\s*\\)\\s*==\\s*4\\s*:" },
-    { type: "codeRegex", name: "Є else", pattern: "else\\s*:" }
-  ]
-},
+          <div class="task-note">
+            <b>Важливо:</b> Оскільки ми використовуємо <code>len(pin)</code> та <code>.isdigit()</code>, перетворювати пін-код на <code>int</code> не треба.
+          </div>
+        `,
+        hint: `if pin.isdigit() and len(pin) == 4:`,
+        expected: `Пін: 1234\nДоступ дозволено`,
+        tests: [
+          { type: "codeRegex", name: "Запит тексту", pattern: "pin\\s*=\\s*input\\s*\\(" },
+          { type: "codeRegex", name: "Комбінована перевірка", pattern: "if\\s+pin\\.isdigit\\s*\\(\\)\\s+and\\s+len\\s*\\(\\s*pin\\s*\\)\\s*==\\s*4\\s*:" },
+          { type: "codeRegex", name: "Є else", pattern: "else\\s*:" }
+        ]
+      },
 
       {
         title: "🛡️ Складна валідація",
@@ -1193,6 +1233,9 @@ else:
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Професійний захист</h2>
           <p>Перед тим як зареєструвати користувача, сайти перевіряють його пароль за кількома критеріями одночасно (довжина, наявність спецсимволів тощо). Це робиться за допомогою ланцюжка операторів.</p>
+          
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">if len(name) &gt; 5 and "@" not in name:<br>    print("Ім'я прийнято")</div>
         `,
         desc: `
           <div class="task-main">
@@ -1355,7 +1398,7 @@ else:
           { type: "codeRegex", name: "Успішний фінал", pattern: "else\\s*:\\s*\\n\\s*print\\s*\\(\\s*['\"]Реєстрація успішна['\"]\\s*\\)" }
         ]
       },
-      
+
       // ==========================================
       // 🔴 РІВЕНЬ: SENIOR (Сучасні інструменти та Трюки)
       // ==========================================
@@ -1374,8 +1417,10 @@ else:
             <code>змінна = (Значення ЯКЩО ПРАВДА) if (УМОВА) else (Значення ЯКЩО БРЕХНЯ)</code>
           </div>
           
-          <p><b>Приклад:</b></p>
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">age = 20<br>status = "Дорослий" if age &gt;= 18 else "Дитина"<br>print(status)</div>
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">Дорослий</div>
         `,
         desc: `
           <div class="task-main">
@@ -1410,8 +1455,10 @@ else:
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Миттєве рішення</h2>
           <p>Оскільки тернарний оператор просто повертає значення, ми можемо засунути його ПРЯМО всередину функції <code>print()</code> або f-рядка!</p>
           
-          <p><b>Приклад:</b></p>
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">money = 50<br>print("Куплено" if money &gt;= 100 else "Відмова")</div>
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">Відмова</div>
         `,
         desc: `
           <div class="task-main">
@@ -1444,8 +1491,10 @@ else:
           <p>Пам'ятаєш ліниву логіку? Оператор <code>or</code> шукає перше значення <code>True</code>. Якщо зліва від нього стоїть порожній рядок <code>""</code> (який є <code>False</code>), він автоматично візьме значення справа!</p>
           <p>Це улюблений трюк програмістів для встановлення <b>дефолтних значень</b>, якщо користувач нічого не ввів (натиснув Enter).</p>
           
-          <p><b>Приклад:</b></p>
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">name = input("Ім'я: ") <b style="color: #3b82f6;">or</b> "Анонім"<br>print("Привіт,", name)</div>
+          <p><b>Результат у терміналі (якщо натиснути Enter):</b></p>
+          <div class="output-box">Ім'я: <br>Привіт, Анонім</div>
         `,
         desc: `
           <div class="task-main">
@@ -1478,6 +1527,9 @@ else:
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Масова перевірка</h2>
           <p>Що робити, якщо нам треба перевірити багато умов одночасно? Писати <code>if a == 1 or b == 1 or c == 1:</code> дуже незручно.</p>
           <p>Вбудована функція <b style="color: #10b981;"><code>any()</code></b> приймає список логічних значень і повертає <code>True</code>, якщо <b>ХОЧА Б ОДИН</b> елемент у списку є <code>True</code>.</p>
+          
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">has_key = False<br>has_bomb = True<br>if any([has_key, has_bomb]):<br>    print("Відкриваємо двері!")</div>
         `,
         desc: `
           <div class="task-main">
@@ -1510,6 +1562,9 @@ else:
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Ідеальні умови</h2>
           <p>Функція <b style="color: #3b82f6;"><code>all()</code></b> — це брат функції <code>any()</code>. Вона повертає <code>True</code> ТІЛЬКИ тоді, коли <b>АБСОЛЮТНО ВСІ</b> елементи у списку є <code>True</code> (заміняє купу операторів <code>and</code>).</p>
+          
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">s1 = True<br>s2 = True<br>if all([s1, s2]):<br>    print("Всі системи готові")</div>
         `,
         desc: `
           <div class="task-main">
@@ -1583,6 +1638,9 @@ else:
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Максимальне скорочення</h2>
           <p>Моржевий оператор ідеально підходить для запиту <code>input()</code>. Ми можемо відразу запитати команду користувача, зберегти її у змінну і перевірити!</p>
+          
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">if (ans := input("Згоден? ")) == "Так":<br>    print(ans)</div>
         `,
         desc: `
           <div class="task-main">
@@ -1649,6 +1707,9 @@ else:
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Замінюємо else</h2>
           <p>У <code>match-case</code> немає слова <code>else</code>. Щоб відловити "всі інші варіанти" (якщо жоден <code>case</code> не підійшов), використовується спеціальний символ підкреслення <b style="color: #ef4444;"><code>case _:</code></b> (він називається wildcard).</p>
+          
+          <p><b>Приклад коду:</b></p>
+          <div class="code-box">match color:<br>    case "Червоний": print("Стій")<br>    <b style="color: #ef4444;">case _:</b> print("Йди")</div>
         `,
         desc: `
           <div class="task-main">
@@ -1681,6 +1742,8 @@ else:
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Замінюємо OR</h2>
           <p>Ще одна фішка <code>match-case</code>: ми можемо об'єднувати кілька значень в один блок за допомогою вертикальної риски <b style="color: #3b82f6;"><code>|</code></b> (це означає <i>АБО</i>).</p>
+          
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">case "субота" | "неділя":<br>    print("Вихідний")</div>
         `,
         desc: `
@@ -1715,6 +1778,8 @@ else:
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Умова всередині патерну</h2>
           <p>Найпотужніша фішка <code>match</code>: ми можемо ставити додатковий <code>if</code> прямо в рядок з <code>case</code>! Це називається Guard (охоронець).</p>
+          
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">case "атака" <b style="color: #10b981;">if</b> hp &gt; 10:<br>    print("Б'ємо ворога")</div>
         `,
         desc: `
@@ -1752,6 +1817,8 @@ else:
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Математична грація</h2>
           <p>У рівні Middle ми писали <code>10 <= x <= 20</code>. Але в Python можна об'єднувати ВЗАГАЛІ будь-які перевірки в один довгий ланцюг!</p>
+          
+          <p><b>Приклад коду:</b></p>
           <div class="code-box">if a == b == c == 100:<br>    print("Всі дорівнюють 100!")</div>
         `,
         desc: `
@@ -1786,6 +1853,7 @@ else:
           <p>Іноді нам не потрібен <code>if/else</code>. Нам треба сказати комп'ютеру: "Ось ця умова МАЄ бути правдою. Якщо це не так — миттєво зупини всю програму і видай помилку!".</p>
           <p>Для цього використовується команда <b style="color: #ef4444;"><code>assert</code></b> (стверджувати). Якщо умова після <code>assert</code> є False, програма "падає" (AssertionError) з повідомленням, яке ми написали через кому.</p>
           
+          <p><b>Приклад коду:</b></p>
           <div class="code-box"><b style="color: #ef4444;">assert</b> hp &gt; 0, "Персонаж мертвий!"</div>
         `,
         desc: `
