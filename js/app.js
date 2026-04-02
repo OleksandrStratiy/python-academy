@@ -243,7 +243,16 @@
       safeB64Decode
     } = window.App.storage;
 
-    let state = load() || structuredClone(defaultState);
+let state = load() || structuredClone(defaultState);
+function replaceState(nextState) {
+  const safeState = structuredClone(nextState || defaultState);
+
+  Object.keys(state).forEach((key) => {
+    delete state[key];
+  });
+
+  Object.assign(state, safeState);
+}
 
     function save() {
       window.App.storage.save(state);
@@ -498,16 +507,18 @@ function renderSidebarModuleTasks(courseId, moduleId, taskIdx) {
   // ===========================
   // Home / modules / leaderboard views
   // ===========================
-  const uiHomeApi = window.App.uiHome.create({
-    $,
-    DB,
-    escapeHtml,
-    courseProgress,
-    openCourseWithLevel,
-    setActiveView,
-    viewHome,
-    renderSidebarHome
-  });
+const uiHomeApi = window.App.uiHome.create({
+  $,
+  DB,
+  escapeHtml,
+  courseProgress,
+  openCourseWithLevel,
+  setActiveView,
+  viewHome,
+  renderSidebarHome,
+  state,
+  supa
+});
 
 const renderCoursesGrid = uiHomeApi.renderCoursesGrid;
 const renderHome = uiHomeApi.renderHome;
@@ -1565,6 +1576,7 @@ function closeMobileMenu() {
   document.querySelector(".sidebar-overlay")?.classList.remove("active");
 }
 function renderByRoute() {
+
     closeMobileMenu();
 
     if (!location.hash) goto("/home");
@@ -1622,7 +1634,7 @@ function renderByRoute() {
     on($("btnResetAll"), "click", () => {
       if (!confirm("Точно очистити прогрес?")) return;
       resetAll();
-      state = structuredClone(defaultState);
+      replaceState(defaultState);
       toast("🧼 Reset done");
       closeSettings();
       showAuth();
@@ -1858,30 +1870,50 @@ if (btnJoinClass) {
   applyTheme(state.settings.theme || "dark");
 
   // --- 1. Ініціалізація нового модуля авторизації ---
-  const authUI = window.App.authUI.create({
-    $,
-    on,
-    supa,
-    state,
-    save,
-    toast,
-    updateStreak,
-    onAuthSuccess: () => {
-      goto("/home");
-      renderByRoute();
+const authUI = window.App.authUI.create({
+  $,
+  on,
+  supa,
+  state,
+  save,
+  toast,
+  updateStreak,
+onAuthSuccess: async () => {
+  try {
+    const user = await getSessionUser();
+
+    if (user) {
+      const cloud = await cloudLoadState(user.id);
+      if (cloud) {
+        replaceState(cloud);
+        save();
+      }
+
+      await loadClassAccessForStudent(user.id);
     }
-  });
+
+    goto("/home");
+    renderByRoute();
+  } catch (e) {
+    console.error("Post-login sync error:", e);
+    goto("/home");
+    renderByRoute();
+  }
+}
+});
+
 
   // --- 2. Стартовий запуск (з перевіркою ролей) ---
   (async () => {
     // якщо користувач уже увійшов через Google — підтягуємо прогрес
+
     if (supa) {
       const user = await getSessionUser();
       if (user) {
         try {
           const cloud = await cloudLoadState(user.id);
           if (cloud) {
-            state = cloud;
+            replaceState(cloud);
             save();
           } else {
             // перший вхід: якщо локально вже є user — заливаємо, якщо ні — створимо
@@ -1919,7 +1951,11 @@ teacherSchoolName: ""
           const isProfileComplete = await authUI.checkCloudProfile(user);
           
           // Якщо профілю немає, authUI покаже вікно вибору ролі і зупинить подальше завантаження
-          if (!isProfileComplete) return; 
+          if (!isProfileComplete) {
+
+  return;
+  await loadClassAccessForStudent(user.id);
+}
           await loadClassAccessForStudent(user.id);
         } catch {
           // якщо щось з хмарою не так — просто працюємо локально
@@ -1927,7 +1963,8 @@ teacherSchoolName: ""
       }
     }
 
-    renderByRoute();
+  
+renderByRoute();
   })();
 })(); // Це закриває найпершу функцію (function () { ... з початку файлу
 
