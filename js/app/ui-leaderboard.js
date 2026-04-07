@@ -13,14 +13,15 @@ window.App.uiLeaderboard = (function () {
   }
 
   function create(deps) {
-    const {
-      $,
-      state,
-      supa,
-      toast,
-      setActiveView,
-      viewLeaderboard
-    } = deps;
+const {
+  $,
+  state,
+  supa,
+  toast,
+  setActiveView,
+  viewLeaderboard,
+  renderSidebarHome
+} = deps;
 
     function sortBoard(rows) {
       return rows
@@ -178,6 +179,9 @@ window.App.uiLeaderboard = (function () {
     }
 
     async function renderLeaderboard() {
+      if (typeof renderSidebarHome === "function") {
+  renderSidebarHome();
+}
       setActiveView(viewLeaderboard);
       $("breadcrumbs").innerText = "🏆 Рейтинг Академії";
 
