@@ -31,6 +31,7 @@ const {
   updateClassRecord,
   deleteClassRecord,
   fetchStudents,
+  removeStudentFromClass,
   saveStudentProgress
 } = store;
 const renderLib = window.App.teacherClassesRender.create({
@@ -55,10 +56,16 @@ const renderLib = window.App.teacherClassesRender.create({
   getModuleAccessState: (...args) => getModuleAccessState(...args),
   getTaskAccessState: (...args) => getTaskAccessState(...args),
   countStudentChangedTasks: (...args) => countStudentChangedTasks(...args),
+  isStudentTaskDone: (...args) => isStudentTaskDone(...args),
+  getStudentModuleProgress: (...args) => getStudentModuleProgress(...args),
 
   getClassModuleAccessState: (...args) => getClassModuleAccessState(...args),
   getClassTaskAccessState: (...args) => getClassTaskAccessState(...args),
-  countClassChangedTasks: (...args) => countClassChangedTasks(...args)
+  countClassChangedTasks: (...args) => countClassChangedTasks(...args),
+  
+ isAccessCourseOpen: (courseId) => isAccessCourseOpen(courseId),
+isAccessModuleOpen: (courseId, moduleId) => isAccessModuleOpen(courseId, moduleId),
+isClassFullyUnlocked: (classRow) => isClassFullyUnlocked(classRow)
 });
 
 const {
@@ -78,14 +85,24 @@ let activeClassCode = null;
 let activeStudents = [];
 let activeStudentId = null;
 let activeStudentAssignments = [];
+let activeStudentSubmissions = [];
 let viewMode = "list"; // list | details | student
 
-state.teacherClassesUI = state.teacherClassesUI || {
-  classSearch: "",
-  studentSearch: "",
-  classSort: "updated",
-  showOnlyRisky: false
-};
+function resetTransientTeacherClassesUi() {
+  const ui = state.teacherClassesUI || {};
+
+  ui.showClassSettingsModal = false;
+  ui.showCreateModal = false;
+  ui.openAccessCourses = {};
+  ui.openAccessModules = {};
+
+  state.teacherClassesUI = ui;
+
+  viewMode = "list";
+  activeClassCode = null;
+  activeStudentId = null;
+  activeStudentAssignments = [];
+}
 
 
 
@@ -104,6 +121,140 @@ state.teacherClassesUI = state.teacherClassesUI || {
       const completed = student?.progress?.user?.completed || {};
       return Object.keys(completed).length;
     }
+    function getStudentLastActiveDays(student) {
+  if (!student?.updated_at) return null;
+
+  const d = new Date(student.updated_at);
+  if (Number.isNaN(d.getTime())) return null;
+
+  return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function getStudentRibbonState(student) {
+  const xp = getStudentXP(student);
+  const attempts = getStudentAttempts(student);
+  const completed = getStudentCompletedCount(student);
+  const inactiveDays = getStudentLastActiveDays(student);
+  const submissionCount = activeStudentSubmissions.length;
+
+  if (
+    attempts >= 10 ||
+    (inactiveDays !== null && inactiveDays >= 10) ||
+    (xp < 100 && completed === 0)
+  ) {
+    return {
+      tone: "danger",
+      label: "Потрібна увага",
+      text: "Мало прогресу або давно немає активності. Варто переглянути завдання і підтримати учня."
+    };
+  }
+
+  if (
+    completed >= 8 ||
+    xp >= 300 ||
+    submissionCount >= 3
+  ) {
+    return {
+      tone: "success",
+      label: "Добрий прогрес",
+      text: "Учень стабільно рухається вперед і має помітний результат у курсах або завданнях."
+    };
+  }
+
+  return {
+    tone: "info",
+    label: "Активний",
+    text: "Є активність і поступ. Можна продовжувати в поточному темпі."
+  };
+}
+    function getTaskCompletionKey(courseId, moduleId, taskIndex) {
+  return `${courseId}_${moduleId}_${taskIndex}`;
+}
+
+function isStudentTaskDone(student, courseId, moduleId, taskIndex) {
+  const completed = getStudentProgress(student)?.user?.completed || {};
+  return !!completed[getTaskCompletionKey(courseId, moduleId, taskIndex)];
+}
+
+function getModuleTaskList(courseId, moduleId) {
+  const course = (window.DB || []).find((item) => item.id === courseId);
+  const module = course?.modules?.find((item) => item.id === moduleId);
+  return Array.isArray(module?.tasks) ? module.tasks : [];
+}
+
+function getStudentModuleProgress(student, courseId, moduleId) {
+  const tasks = getModuleTaskList(courseId, moduleId);
+  const total = tasks.length;
+
+  const done = tasks.reduce((sum, _, index) => {
+    return sum + (isStudentTaskDone(student, courseId, moduleId, index) ? 1 : 0);
+  }, 0);
+
+  return {
+    total,
+    done,
+    completed: total > 0 && done >= total
+  };
+}
+
+function getStudentAssignmentStatusLabel(status) {
+  if (status === "active") return "Активне";
+  if (status === "submitted") return "Здано";
+  if (status === "review") return "На перевірці";
+  if (status === "reviewed") return "Перевірено";
+  if (status === "returned") return "На доопрацюванні";
+  if (status === "closed") return "Закрито";
+  return "Активне";
+}
+
+function renderStudentAssignmentStatusBadge(status) {
+  const safeStatus = String(status || "active");
+
+  let extraClass = "";
+  if (safeStatus === "submitted") extraClass = " teacher-pill--warn";
+  if (safeStatus === "review") extraClass = " teacher-pill--accent";
+  if (safeStatus === "reviewed") extraClass = " teacher-pill--success";
+  if (safeStatus === "returned") extraClass = " teacher-pill--danger";
+  if (safeStatus === "closed") extraClass = " teacher-pill--ghost";
+
+  return `<span class="teacher-pill${extraClass}">${escapeHtml(getStudentAssignmentStatusLabel(safeStatus))}</span>`;
+}
+
+function getStudentSubmissionStatusLabel(status) {
+  if (status === "submitted") return "Здано";
+  if (status === "review") return "На перевірці";
+  if (status === "reviewed") return "Перевірено";
+  if (status === "returned") return "На доопрацюванні";
+  return "Здано";
+}
+
+function renderStudentSubmissionStatusBadge(status) {
+  const safeStatus = String(status || "submitted");
+
+  let extraClass = "";
+  if (safeStatus === "submitted") extraClass = " teacher-pill--warn";
+  if (safeStatus === "review") extraClass = " teacher-pill--accent";
+  if (safeStatus === "reviewed") extraClass = " teacher-pill--success";
+  if (safeStatus === "returned") extraClass = " teacher-pill--danger";
+
+  return `<span class="teacher-pill${extraClass}">${escapeHtml(getStudentSubmissionStatusLabel(safeStatus))}</span>`;
+}
+
+function renderStudentMissingSubmissionBadge(assignmentStatus) {
+  const safeStatus = String(assignmentStatus || "active");
+
+  if (safeStatus === "closed") {
+    return `<span class="teacher-pill teacher-pill--ghost">Закрито без здачі</span>`;
+  }
+
+  return `<span class="teacher-pill teacher-pill--ghost">Не здано</span>`;
+}
+
+function getStudentSubmissionForAssignment(assignmentId) {
+  return activeStudentSubmissions.find(
+    (item) => String(item.assignment_id || "") === String(assignmentId || "")
+  ) || null;
+}
 function getStudentProgress(student) {
   return student?.progress || { user: {} };
 }
@@ -132,12 +283,22 @@ function getCourseAccessTree() {
   return (window.DB || [])
     .map(course => {
       const modules = (course.modules || []).map(mod => {
-        const tasks = (mod.tasks || []).map((task, index) => ({
-          courseId: course.id,
-          moduleId: mod.id,
-          taskIndex: index,
-          taskTitle: task?.title || `Завдання ${index + 1}`
-        }));
+const tasks = (mod.tasks || []).map((task, index) => {
+  const rawDifficulty = String(task?.difficulty || task?.taskDifficulty || "Junior").trim().toLowerCase();
+
+  const normalizedDifficulty =
+    rawDifficulty === "middle" ? "Middle" :
+    rawDifficulty === "senior" ? "Senior" :
+    "Junior";
+
+  return {
+    courseId: course.id,
+    moduleId: mod.id,
+    taskIndex: index,
+    taskTitle: task?.title || `Завдання ${index + 1}`,
+    taskDifficulty: normalizedDifficulty
+  };
+});
 
         return {
           courseId: course.id,
@@ -157,8 +318,102 @@ function getCourseAccessTree() {
     .filter(course => course.modules.length);
 }
 
+function getTaskCompletionKey(courseId, moduleId, taskIndex) {
+  return `${courseId}_${moduleId}_${taskIndex}`;
+}
 
+function isStudentTaskDone(student, courseId, moduleId, taskIndex) {
+  const completed = getStudentProgress(student)?.user?.completed || {};
+  return !!completed[getTaskCompletionKey(courseId, moduleId, taskIndex)];
+}
 
+function getStudentCourseSummary(student, course) {
+  const modules = course?.modules || [];
+
+  let totalModules = modules.length;
+  let completedModules = 0;
+  let totalTasks = 0;
+  let completedTasks = 0;
+  let customRules = 0;
+
+  modules.forEach((module) => {
+    const moduleState = getModuleAccessState(student, course.courseId, module.moduleId);
+    if (moduleState !== "auto") {
+      customRules += 1;
+    }
+
+    const tasks = module.tasks || [];
+    let moduleDoneTasks = 0;
+
+    tasks.forEach((task) => {
+      totalTasks += 1;
+
+      const taskState = getTaskAccessState(
+        student,
+        task.courseId,
+        task.moduleId,
+        task.taskIndex
+      );
+
+      if (taskState !== "auto") {
+        customRules += 1;
+      }
+
+      if (isStudentTaskDone(student, task.courseId, task.moduleId, task.taskIndex)) {
+        completedTasks += 1;
+        moduleDoneTasks += 1;
+      }
+    });
+
+    if (tasks.length > 0 && moduleDoneTasks === tasks.length) {
+      completedModules += 1;
+    }
+  });
+
+  const percent = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  return {
+    totalModules,
+    completedModules,
+    totalTasks,
+    completedTasks,
+    customRules,
+    percent
+  };
+}
+
+function renderStudentLearningStateBlock(student) {
+  const courses = getCourseAccessTree();
+  if (!courses.length) return "";
+
+  return `
+    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.05);">
+      <h5 style="margin: 0 0 12px 0; font-size: 11px; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.05em;">
+        Стан навчання (Прогрес за курсами)
+      </h5>
+      <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+        ${courses.map((course) => {
+          const summary = getStudentCourseSummary(student, course);
+          
+          return `
+            <div style="flex: 1; min-width: 260px; background: rgba(0,0,0,0.2); padding: 12px 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.02);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-weight: 700; font-size: 13px; color: var(--text);">${escapeHtml(course.courseTitle)}</div>
+                <div style="font-size: 11px; color: var(--text-dim);">${summary.completedTasks} / ${summary.totalTasks} завдань</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                  <div style="height: 100%; width: ${summary.percent}%; background: var(--primary); border-radius: 3px; transition: width 0.5s ease;"></div>
+                </div>
+                <div style="font-size: 12px; font-weight: 800; color: var(--primary);">${summary.percent}%</div>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
 async function setStudentModuleAccess(studentId, courseId, moduleId, value) {
   const student = activeStudents.find(s => s.id === studentId);
   if (!student) throw new Error("Student not found");
@@ -187,12 +442,17 @@ async function setStudentTaskAccess(studentId, courseId, moduleId, taskIndex, va
 
   const progress = structuredClone(getStudentProgress(student));
   progress.user = progress.user || {};
+
+  progress.user.moduleAccess = progress.user.moduleAccess || {};
+  progress.user.moduleAccess[courseId] = progress.user.moduleAccess[courseId] || {};
+
   progress.user.taskAccess = progress.user.taskAccess || {};
   progress.user.taskAccess[courseId] = progress.user.taskAccess[courseId] || {};
   progress.user.taskAccess[courseId][moduleId] = progress.user.taskAccess[courseId][moduleId] || {};
 
   if (!value || value === "auto") {
     delete progress.user.taskAccess[courseId][moduleId][taskIndex];
+
     if (!Object.keys(progress.user.taskAccess[courseId][moduleId]).length) {
       delete progress.user.taskAccess[courseId][moduleId];
     }
@@ -201,6 +461,11 @@ async function setStudentTaskAccess(studentId, courseId, moduleId, taskIndex, va
     }
   } else {
     progress.user.taskAccess[courseId][moduleId][taskIndex] = value;
+  }
+
+  // якщо відкрили конкретне завдання — відкриваємо і модуль
+  if (value === "unlocked") {
+    progress.user.moduleAccess[courseId][moduleId] = "unlocked";
   }
 
   await store.saveStudentProgress(studentId, progress);
@@ -220,41 +485,134 @@ function countClassChangedTasks(classRow, module) {
     getClassTaskAccessState(classRow, module.courseId, module.moduleId, task.taskIndex) !== "auto"
   ).length;
 }
+function isClassFullyUnlocked(classRow) {
+  if (!classRow) return false;
 
+  const courses = getCourseAccessTree();
+  if (!courses.length) return false;
 
+  return courses.every((course) =>
+    (course.modules || []).every((module) =>
+      getClassModuleAccessState(classRow, course.courseId, module.moduleId) === "unlocked"
+    )
+  );
+}
 
+async function setClassOpenAllAccess(classCode, enabled) {
+  const cls = teacherClasses.find((c) => c.code === classCode);
+  if (!cls) throw new Error("Class not found");
+
+  const courses = getCourseAccessTree();
+
+  if (!enabled) {
+    await updateClassRecord(classCode, {
+      module_access: {},
+      task_access: {}
+    });
+
+    cls.module_access = {};
+    cls.task_access = {};
+    return;
+  }
+
+  const nextModuleAccess = {};
+  courses.forEach((course) => {
+    nextModuleAccess[course.courseId] = {};
+    (course.modules || []).forEach((module) => {
+      nextModuleAccess[course.courseId][module.moduleId] = "unlocked";
+    });
+  });
+
+  await updateClassRecord(classCode, {
+    module_access: nextModuleAccess,
+    task_access: {}
+  });
+
+  cls.module_access = nextModuleAccess;
+  cls.task_access = {};
+}
+
+function getAccessCourseKey(courseId) {
+  return String(courseId || "");
+}
+
+function getAccessModuleKey(courseId, moduleId) {
+  return `${courseId}::${moduleId}`;
+}
+
+function isAccessCourseOpen(courseId) {
+  return !!getClassesUi().openAccessCourses[getAccessCourseKey(courseId)];
+}
+
+function isAccessModuleOpen(courseId, moduleId) {
+  return !!getClassesUi().openAccessModules[getAccessModuleKey(courseId, moduleId)];
+}
+
+function setAccessCourseOpen(courseId, isOpen) {
+  const ui = getClassesUi();
+  ui.openAccessCourses[getAccessCourseKey(courseId)] = !!isOpen;
+  save?.();
+}
+
+function setAccessModuleOpen(courseId, moduleId, isOpen) {
+  const ui = getClassesUi();
+  ui.openAccessModules[getAccessModuleKey(courseId, moduleId)] = !!isOpen;
+  save?.();
+}
 
 
 function renderStudentAccessBlock(student) {
   const courses = getCourseAccessTree();
+  if (!courses.length) return "";
 
   return `
-    <section class="teacher-card">
-      <div class="teacher-card__head">
-        <h4>Індивідуальні доступи</h4>
+    <style>
+      .access-course-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--primary); margin: 20px 0 10px 0; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; }
+      .module-accordion { background: rgba(30,41,59,0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; margin-bottom: 10px; overflow: hidden; transition: border-color 0.2s; }
+      .module-accordion[open] { border-color: rgba(14, 165, 233, 0.3); background: rgba(30,41,59,0.5); }
+      .module-summary { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; cursor: pointer; list-style: none; gap: 16px; }
+      .module-summary::-webkit-details-marker { display: none; }
+      .module-summary:hover { background: rgba(255,255,255,0.03); }
+      .module-summary-left { display: flex; align-items: center; gap: 14px; }
+      .module-icon { background: rgba(14, 165, 233, 0.1); color: var(--primary); width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+      .module-summary-right { display: flex; align-items: center; gap: 12px; }
+      .module-summary-right i { transition: transform 0.3s ease; }
+      .module-accordion[open] .module-summary-right i { transform: rotate(180deg); color: var(--primary); }
+      .custom-select { appearance: none; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: var(--text); padding: 8px 32px 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: var(--font); cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M12 15l-5-5h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; background-size: 18px; transition: 0.2s; }
+      .custom-select:hover { border-color: rgba(255,255,255,0.3); }
+      .custom-select:focus { border-color: var(--primary); outline: none; }
+      .custom-select--unlocked { color: #4ade80; background-color: rgba(34, 197, 94, 0.05); border-color: rgba(34, 197, 94, 0.3); }
+      .custom-select--locked { color: #fb7185; background-color: rgba(244, 63, 94, 0.05); border-color: rgba(244, 63, 94, 0.3); }
+      .custom-select--small { padding: 4px 28px 4px 10px; font-size: 12px; border-radius: 6px; }
+      .module-body { background: rgba(0,0,0,0.15); border-top: 1px solid rgba(255,255,255,0.05); padding: 8px 16px; }
+      .task-access-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed rgba(255,255,255,0.05); }
+      .task-access-row:last-child { border-bottom: none; }
+      .task-name { font-size: 13px; color: var(--text-dim); display: flex; align-items: center; gap: 10px; }
+      .task-num { color: var(--text); font-family: var(--mono); font-size: 11px; background: rgba(255,255,255,0.1); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+    </style>
+
+    <div style="background: rgba(14, 165, 233, 0.03); border: 1px solid rgba(14, 165, 233, 0.2); border-radius: 14px; padding: 20px; margin-bottom: 20px;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+        <i class="ri-user-settings-fill" style="color: var(--primary); font-size: 20px;"></i>
+        <h4 style="margin: 0; color: var(--text); font-size: 16px;">Індивідуальні доступи учня</h4>
       </div>
+      <p class="teacher-muted" style="margin: 0 0 16px 0; font-size: 13px;">
+        Ці налаштування <b>ігнорують правила класу</b>. Використовуй їх, щоб персонально відкрити чи закрити завдання.<br>
+        <i class="ri-checkbox-circle-fill" style="color: var(--success); font-size: 14px; vertical-align: text-bottom;"></i> — учень вже виконав це завдання.
+      </p>
 
-      <div class="teacher-access-stack">
+      <div style="display: flex; flex-direction: column;">
         ${courses.map(course => `
-          <section class="teacher-access-course">
-            <div class="teacher-access-course__head">
-              <div>
-                <h5>${escapeHtml(course.courseTitle)}</h5>
-                <p>${course.modules.length} модулів</p>
-              </div>
-            </div>
-
-            <div class="teacher-access-list">
-              ${course.modules.map((module, index) =>
-                renderStudentModuleAccessGroup(student, course, module, false)
-              ).join("")}
-            </div>
-          </section>
+          <div class="access-course-title">${escapeHtml(course.courseTitle)}</div>
+          <div>
+            ${course.modules.map(module => renderStudentModuleAccessGroup(student, course, module)).join("")}
+          </div>
         `).join("")}
       </div>
-    </section>
+    </div>
   `;
 }
+
 
 
 
@@ -263,13 +621,34 @@ function renderStudentAccessBlock(student) {
     function getActiveClass() {
       return teacherClasses.find(c => c.code === activeClassCode) || null;
     }
-    function getClassesUi() {
+function getClassesUi() {
   state.teacherClassesUI = state.teacherClassesUI || {
     classSearch: "",
     studentSearch: "",
     classSort: "updated",
-    showOnlyRisky: false
+    showOnlyRisky: false,
+    showClassSettingsModal: false,
+    showCreateModal: false,
+    openAccessCourses: {},
+    openAccessModules: {}
   };
+
+  if (typeof state.teacherClassesUI.showClassSettingsModal !== "boolean") {
+    state.teacherClassesUI.showClassSettingsModal = false;
+  }
+
+  if (typeof state.teacherClassesUI.showCreateModal !== "boolean") {
+    state.teacherClassesUI.showCreateModal = false;
+  }
+
+  if (!state.teacherClassesUI.openAccessCourses || typeof state.teacherClassesUI.openAccessCourses !== "object") {
+    state.teacherClassesUI.openAccessCourses = {};
+  }
+
+  if (!state.teacherClassesUI.openAccessModules || typeof state.teacherClassesUI.openAccessModules !== "object") {
+    state.teacherClassesUI.openAccessModules = {};
+  }
+
   return state.teacherClassesUI;
 }
 function getStudentCountForClass(classCode) {
@@ -295,13 +674,15 @@ function getFilteredClasses() {
     );
   }
 
-  if (ui.classSort === "name") {
-    list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "uk"));
-} else if (ui.classSort === "students") {
+if (ui.classSort === "name") {
   list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "uk"));
 } else {
-    list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "uk"));
-  }
+  list.sort((a, b) => {
+    const aTime = new Date(a.updated_at || 0).getTime();
+    const bTime = new Date(b.updated_at || 0).getTime();
+    return bTime - aTime;
+  });
+}
 
   return list;
 }
@@ -331,7 +712,11 @@ function getFilteredStudents() {
 function getClassTaskAccessState(classRow, courseId, moduleId, taskIndex) {
   return classRow?.task_access?.[courseId]?.[moduleId]?.[taskIndex] || "auto";
 }
-
+function getNextAccessState(value) {
+  if (value === "auto") return "unlocked";
+  if (value === "unlocked") return "locked";
+  return "auto";
+}
 async function setClassModuleAccess(classCode, courseId, moduleId, value) {
   const cls = teacherClasses.find(c => c.code === classCode);
   if (!cls) throw new Error("Class not found");
@@ -355,6 +740,8 @@ async function setClassTaskAccess(classCode, courseId, moduleId, taskIndex, valu
   if (!cls) throw new Error("Class not found");
 
   const nextAccess = structuredClone(cls.task_access || {});
+  const nextModuleAccess = structuredClone(cls.module_access || {});
+
   nextAccess[courseId] = nextAccess[courseId] || {};
   nextAccess[courseId][moduleId] = nextAccess[courseId][moduleId] || {};
 
@@ -366,30 +753,56 @@ async function setClassTaskAccess(classCode, courseId, moduleId, taskIndex, valu
     nextAccess[courseId][moduleId][taskIndex] = value;
   }
 
-  await updateClassRecord(classCode, { task_access: nextAccess });
-  cls.task_access = nextAccess;
-}
+  // якщо конкретне завдання відкрили — модуль теж відкриваємо
+  if (value === "unlocked") {
+    nextModuleAccess[courseId] = nextModuleAccess[courseId] || {};
+    nextModuleAccess[courseId][moduleId] = "unlocked";
+  }
 
+  await updateClassRecord(classCode, {
+    task_access: nextAccess,
+    module_access: nextModuleAccess
+  });
+
+  cls.task_access = nextAccess;
+  cls.module_access = nextModuleAccess;
+}
 
 
     function getActiveStudent() {
       return activeStudents.find(s => s.id === activeStudentId) || null;
     }
-    async function loadActiveStudentAssignments() {
+async function loadActiveStudentAssignments() {
   const student = getActiveStudent();
   const classCode = student?.class_code || activeClassCode || "";
 
+  activeStudentAssignments = [];
+  activeStudentSubmissions = [];
+
   if (!student?.id || !classCode) {
-    activeStudentAssignments = [];
     return;
   }
 
   try {
-    activeStudentAssignments = await assignmentStore.fetchAssignmentsForStudent(student.id, classCode);
+    const assignments = await assignmentStore.fetchAssignmentsForStudent(student.id, classCode);
+    activeStudentAssignments = assignments;
+
+    if (!assignments.length) {
+      return;
+    }
+
+    const submissions = await assignmentStore.fetchSubmissionsByAssignmentIds(
+      assignments.map((item) => item.id)
+    );
+
+    activeStudentSubmissions = submissions.filter(
+      (item) => String(item.student_id || "") === String(student.id)
+    );
   } catch (err) {
     console.error(err);
     activeStudentAssignments = [];
-    toast("❌ Не вдалося завантажити призначені завдання учня");
+    activeStudentSubmissions = [];
+    toast("❌ Не вдалося завантажити завдання та здачі учня");
   }
 }
 
@@ -408,18 +821,33 @@ function renderStudentAssignmentsBlock() {
     return `
       <section class="teacher-card">
         <div class="teacher-card__head">
-          <h4>Призначені завдання учню</h4>
-          <button
-            type="button"
-            id="teacherRefreshStudentAssignmentsBtn"
-            class="teacher-btn teacher-btn--ghost teacher-btn--small"
-          >
-            Оновити
-          </button>
+          <div>
+            <h4>Видані завдання</h4>
+            <p class="teacher-muted">Окремі завдання для цього учня або завдання, видані всьому класу.</p>
+          </div>
+
+          <div class="teacher-class-item__actions">
+            <button
+              type="button"
+              id="teacherRefreshStudentAssignmentsBtn"
+              class="teacher-btn teacher-btn--ghost teacher-btn--small"
+            >
+              Оновити
+            </button>
+
+            <button
+              type="button"
+              class="teacher-btn teacher-btn--ghost teacher-btn--small"
+              data-open-assignments-student="${escapeHtml(student.id)}"
+              data-open-assignments-classcode="${escapeHtml(student.class_code || activeClassCode || "")}"
+            >
+              До вкладки завдань
+            </button>
+          </div>
         </div>
 
         <div class="teacher-empty">
-          Для цього учня поки немає призначених завдань.
+          Для цього учня поки немає виданих завдань.
         </div>
       </section>
     `;
@@ -428,7 +856,10 @@ function renderStudentAssignmentsBlock() {
   return `
     <section class="teacher-card">
       <div class="teacher-card__head">
-        <h4>Призначені завдання учню</h4>
+        <div>
+          <h4>Видані завдання</h4>
+          <p class="teacher-muted">Тут видно, що саме видано, що вже здано і який результат перевірки.</p>
+        </div>
 
         <div class="teacher-class-item__actions">
           <button
@@ -445,47 +876,127 @@ function renderStudentAssignmentsBlock() {
             data-open-assignments-student="${escapeHtml(student.id)}"
             data-open-assignments-classcode="${escapeHtml(student.class_code || activeClassCode || "")}"
           >
-            До завдань
+            До вкладки завдань
           </button>
         </div>
       </div>
 
-      <div class="teacher-class-list">
-        ${activeStudentAssignments.map((item) => `
-<article class="teacher-class-item">
-  <div class="teacher-class-item__main">
-    <div class="teacher-class-item__title">${escapeHtml(item.title_snapshot || "Без назви")}</div>
+      <div class="teacher-assignment-list teacher-assignment-list--student">
+        ${activeStudentAssignments.map((item) => {
+          const submission = getStudentSubmissionForAssignment(item.id);
 
-    <div class="teacher-class-item__meta">
-      ${item.target_type === "student" ? "Індивідуально" : "Через увесь клас"}
-      · Клас: <b>${escapeHtml(item.class_code || "—")}</b>
-    </div>
+          return `
+            <article class="teacher-assignment-item">
+              <div class="teacher-assignment-item__top">
+                <div>
+                  <div class="teacher-task-item__title">
+                    ${escapeHtml(item.title_snapshot || "Без назви")}
+                  </div>
 
-    <div class="teacher-class-item__meta">
-      Дедлайн: <b>${escapeHtml(formatDate(item.due_at))}</b>
-    </div>
+                  <div class="teacher-task-item__meta">
+                    ${item.target_type === "student" ? "Індивідуально" : "Через увесь клас"}
+                    · Клас: <b>${escapeHtml(item.class_code || "—")}</b>
+                  </div>
+                </div>
 
-    ${
-      item.note_for_student
-        ? `<div class="teacher-class-item__meta">Примітка: ${escapeHtml(item.note_for_student)}</div>`
-        : ``
-    }
-  </div>
+                <div class="teacher-student-card__stats">
+                  ${
+                    submission
+                      ? renderStudentSubmissionStatusBadge(submission.status)
+                      : renderStudentMissingSubmissionBadge(item.status)
+                  }
+                </div>
+              </div>
 
-  <div class="teacher-class-item__actions">
-    <button
-      type="button"
-      class="teacher-btn teacher-btn--ghost teacher-btn--small"
-      data-open-assignment-edit="${escapeHtml(item.id)}"
-      data-open-assignment-title="${escapeHtml(item.title_snapshot || "")}"
-      data-open-assignment-classcode="${escapeHtml(item.class_code || student.class_code || activeClassCode || "")}"
-      data-open-assignment-studentid="${escapeHtml(student.id)}"
-    >
-      Редагувати це завдання
-    </button>
-  </div>
-</article>
-        `).join("")}
+              <div class="teacher-assignment-item__meta-grid">
+                <div class="teacher-task-item__meta">
+                  Дедлайн: <b>${escapeHtml(formatDate(item.due_at))}</b>
+                </div>
+                <div class="teacher-task-item__meta">
+                  Видано: <b>${escapeHtml(formatDate(item.created_at))}</b>
+                </div>
+              </div>
+
+              ${
+                item.note_for_student
+                  ? `
+                    <div class="teacher-assignment-item__note">
+                      <b>Примітка вчителя:</b> ${escapeHtml(item.note_for_student)}
+                    </div>
+                  `
+                  : ``
+              }
+
+              ${
+                submission
+                  ? `
+                    <div class="teacher-assignment-item__submission">
+                      <div class="teacher-assignment-item__submission-row">
+                        <div class="teacher-assignment-item__submission-title">
+                          Здача учня
+                        </div>
+                        <div class="teacher-student-card__stats">
+                          ${renderStudentSubmissionStatusBadge(submission.status)}
+                        </div>
+                      </div>
+
+                      <div class="teacher-assignment-item__submission-meta">
+                        Здано: <b>${escapeHtml(formatDate(submission.submitted_at))}</b>
+                        ${
+                          submission.points !== null && submission.points !== undefined
+                            ? ` · Бал: <b>${escapeHtml(String(submission.points))}</b>`
+                            : ``
+                        }
+                      </div>
+
+                      ${
+                        submission.submission_text
+                          ? `
+                            <div class="teacher-assignment-item__submission-text">
+                              ${escapeHtml(submission.submission_text)}
+                            </div>
+                          `
+                          : `
+                            <div class="teacher-assignment-item__submission-text teacher-assignment-item__submission-text--empty">
+                              Учень не додав текстову відповідь.
+                            </div>
+                          `
+                      }
+
+                      ${
+                        submission.teacher_comment
+                          ? `
+                            <div class="teacher-assignment-item__teacher-comment">
+                              <b>Коментар учителя:</b><br>
+                              ${escapeHtml(submission.teacher_comment)}
+                            </div>
+                          `
+                          : ``
+                      }
+                    </div>
+                  `
+                  : `
+                    <div class="teacher-assignment-item__submission teacher-assignment-item__submission--empty">
+                      Учень ще не здав це завдання.
+                    </div>
+                  `
+              }
+
+              <div class="teacher-class-item__actions" style="margin-top:10px;">
+                <button
+                  type="button"
+                  class="teacher-btn teacher-btn--ghost teacher-btn--small"
+                  data-open-assignment-edit="${escapeHtml(item.id)}"
+                  data-open-assignment-title="${escapeHtml(item.title_snapshot || "")}"
+                  data-open-assignment-classcode="${escapeHtml(item.class_code || student.class_code || activeClassCode || "")}"
+                  data-open-assignment-studentid="${escapeHtml(student.id)}"
+                >
+                  Редагувати
+                </button>
+              </div>
+            </article>
+          `;
+        }).join("")}
       </div>
     </section>
   `;
@@ -496,7 +1007,60 @@ function renderClassesList() {
   const classesToRender = getFilteredClasses();
 
   return `
-    <div class="teacher-toolbar">
+    <style>
+      .premium-class-card {
+        background: linear-gradient(145deg, rgba(30,41,59,0.4), rgba(15,23,42,0.8));
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 18px;
+        padding: 20px;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
+      .premium-class-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px -10px rgba(14, 165, 233, 0.25);
+        border-color: rgba(14, 165, 233, 0.3);
+      }
+      .premium-class-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 4px;
+        background: var(--primary);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+      .premium-class-card:hover::before {
+        opacity: 1;
+      }
+      .class-icon-bg {
+        background: rgba(255,255,255,0.05);
+        padding: 10px;
+        border-radius: 12px;
+        color: var(--primary);
+        transition: all 0.3s ease;
+      }
+      .premium-class-card:hover .class-icon-bg {
+        background: var(--primary);
+        color: #fff;
+        transform: scale(1.1);
+      }
+      .class-code-badge {
+        font-family: var(--mono);
+        font-size: 13px;
+        background: rgba(0,0,0,0.3);
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.05);
+        letter-spacing: 0.05em;
+      }
+    </style>
+
+    <div class="teacher-toolbar teacher-toolbar--classes">
       <input
         type="text"
         id="teacherClassSearchInput"
@@ -506,39 +1070,71 @@ function renderClassesList() {
       />
 
       <select id="teacherClassSortSelect" class="teacher-input">
-        <option value="updated" ${ui.classSort === "updated" ? "selected" : ""}>Сортувати: стандартно</option>
-        <option value="name" ${ui.classSort === "name" ? "selected" : ""}>Сортувати: за назвою</option>
-        <option value="students" ${ui.classSort === "students" ? "selected" : ""}>Сортувати: за учнями</option>
+        <option value="updated" ${ui.classSort === "updated" ? "selected" : ""}>Сортувати: за активністю</option>
+        <option value="name" ${ui.classSort === "name" ? "selected" : ""}>Сортувати: за назвою (А-Я)</option>
       </select>
     </div>
 
     ${
       !classesToRender.length
-        ? `<div class="teacher-empty">Нічого не знайдено. Спробуй змінити пошук.</div>`
+        ? `<div class="teacher-empty">Нічого не знайдено. Спробуй змінити пошук або додати новий клас.</div>`
         : `
-          <div class="teacher-class-list">
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 10px;">
             ${classesToRender.map(cls => `
-              <article class="teacher-class-item">
-                <div class="teacher-class-item__main">
-                  <div class="teacher-class-item__title">${escapeHtml(cls.name)}</div>
-                  <div class="teacher-class-item__meta">
-                    Код: <b>${escapeHtml(cls.code)}</b>
-                    ${cls.school_name ? ` · Школа: <b>${escapeHtml(cls.school_name)}</b>` : ""}
+              <article
+                class="premium-class-card"
+                data-class-open="${escapeHtml(cls.code)}"
+                tabindex="0"
+                role="button"
+              >
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                  <div>
+                    <div style="font-size: 11px; font-weight: 800; color: var(--primary); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px;">Клас</div>
+                    <h3 style="margin: 0; font-size: 20px; line-height: 1.2;">${escapeHtml(cls.name)}</h3>
+                  </div>
+                  <div class="class-icon-bg">
+                    <i class="ri-group-line" style="font-size: 20px;"></i>
                   </div>
                 </div>
 
-                <div class="teacher-class-item__actions">
-                  <button class="teacher-btn teacher-btn--ghost" data-class-copy="${cls.code}" title="Копіювати код">
-                    <i class="ri-file-copy-line"></i>
-                  </button>
+                <div style="font-size: 13px; color: var(--text-dim); display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="ri-user-smile-line" style="font-size: 16px;"></i> 
+                    <span>Учнів: <b style="color: var(--text); font-size: 14px;">${getStudentCountForClass(cls.code)}</b></span>
+                  </div>
+                  ${cls.school_name ? `
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="ri-building-4-line" style="font-size: 16px;"></i> 
+                    <span>Школа: <b style="color: var(--text);">${escapeHtml(cls.school_name)}</b></span>
+                  </div>` : ""}
+                </div>
 
-                  <button class="teacher-btn teacher-btn--ghost" data-class-open="${cls.code}">
-                    Відкрити
-                  </button>
+                <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                  
+                  <div class="class-code-badge" title="Унікальний код класу">
+                    ${escapeHtml(cls.code)}
+                  </div>
 
-                  <button class="teacher-btn teacher-btn--ghost teacher-btn--danger" data-class-delete="${cls.code}" title="Видалити клас">
-                    <i class="ri-delete-bin-line"></i>
-                  </button>
+                  <div style="display: flex; gap: 6px;" class="teacher-class-card__actions">
+                    <button
+                      type="button"
+                      class="teacher-btn teacher-btn--ghost teacher-btn--small"
+                      data-class-copy="${escapeHtml(cls.code)}"
+                      title="Копіювати код"
+                    >
+                      <i class="ri-file-copy-line"></i>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="teacher-btn teacher-btn--ghost teacher-btn--small teacher-btn--danger"
+                      data-class-delete="${escapeHtml(cls.code)}"
+                      title="Видалити клас"
+                    >
+                      <i class="ri-delete-bin-line"></i>
+                    </button>
+                  </div>
+
                 </div>
               </article>
             `).join("")}
@@ -553,78 +1149,140 @@ function renderStudentsTable() {
   const studentsToRender = getFilteredStudents();
 
   if (!activeStudents.length) {
-    return `
-      <div class="teacher-empty">
-        У цьому класі ще немає учнів.<br>
-        Дай учням код <b>${escapeHtml(activeClassCode)}</b>, щоб вони приєднались.
-      </div>
-    `;
+    return `<div class="teacher-empty">У цьому класі ще немає учнів.</div>`;
   }
 
   return `
-    <div class="teacher-toolbar">
+    <style>
+      .compact-student-row {
+        display: grid; 
+        grid-template-columns: minmax(150px, 3fr) 70px 120px 100px 130px 40px; 
+        gap: 12px; align-items: center; padding: 10px 16px; 
+        background: rgba(30,41,59,0.3); border: 1px solid rgba(255,255,255,0.03); 
+        border-radius: 10px; transition: all 0.2s ease; cursor: pointer;
+      }
+      .compact-student-row:hover {
+        background: rgba(30,41,59,0.8); border-color: rgba(14, 165, 233, 0.4); transform: translateX(4px);
+      }
+    </style>
+
+    <div class="teacher-toolbar" style="margin-bottom: 16px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
       <input
         type="text"
         id="teacherStudentSearchInput"
-        class="teacher-input"
-        placeholder="Пошук учня"
+        class="teacher-input teacher-input--small"
+        placeholder="Пошук учня..."
         value="${escapeHtml(ui.studentSearch || "")}"
+        style="max-width: 220px; margin: 0;"
       />
-
-      <label class="teacher-check teacher-check--inline">
-        <input type="checkbox" id="teacherOnlyRiskyInput" ${ui.showOnlyRisky ? "checked" : ""}>
-        <span>Лише ті, кому потрібна допомога</span>
+      
+      <label class="teacher-check" style="margin: 0; white-space: nowrap; font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <input type="checkbox" id="teacherOnlyRiskyInput" ${ui.showOnlyRisky ? "checked" : ""} style="margin: 0;">
+        <span style="color: var(--text-dim);">Тільки ті, хто відстає</span>
       </label>
     </div>
 
-    ${
-      !studentsToRender.length
-        ? `<div class="teacher-empty">За цими фільтрами учнів не знайдено.</div>`
+    ${!studentsToRender.length
+        ? `<div class="teacher-empty" style="padding: 20px;">Нікого не знайдено.</div>`
         : `
-          <div class="teacher-students-table-wrap">
-            <table class="teacher-students-table">
-              <thead>
-                <tr>
-                  <th>Учень</th>
-                  <th>XP</th>
-                  <th>Спроби</th>
-                  <th>Остання активність</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                ${studentsToRender.map(student => `
-                  <tr>
-                    <td>${escapeHtml(student.full_name || "Без імені")}</td>
-                    <td>${getStudentXP(student)}</td>
-                    <td>${getStudentAttempts(student)}</td>
-                    <td>${formatDate(student.updated_at)}</td>
-                    <td>
-                      <button class="teacher-btn teacher-btn--ghost teacher-btn--small" data-student-open="${student.id}">
-                        Переглянути
-                      </button>
-                    </td>
-                  </tr>
-                `).join("")}
-              </tbody>
-            </table>
+          <div style="display: grid; grid-template-columns: minmax(150px, 3fr) 70px 120px 100px 130px 40px; gap: 12px; padding: 0 16px 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <div class="student-col-header">Учень</div>
+            <div class="student-col-header">Рівень</div>
+            <div class="student-col-header">Прогрес</div>
+            <div class="student-col-header">Спроби</div>
+            <div class="student-col-header">Останній візит</div>
+            <div class="student-col-header"></div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+            ${studentsToRender.map((student) => {
+              const xp = getStudentXP(student);
+              const attempts = getStudentAttempts(student);
+              const risky = attempts >= 5 || xp < 100;
+              const lvl = (window.App?.helpers?.levelFromXp) ? window.App.helpers.levelFromXp(xp).level : Math.floor(xp/200) + 1;
+
+              return `
+                <article class="compact-student-row" data-open-student="${escapeHtml(student.id)}" tabindex="0" role="button">
+                  <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                    <div style="min-width: 32px; height: 32px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff;">
+                      ${(student.full_name || "Б")[0].toUpperCase()}
+                    </div>
+                    <div style="font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      ${escapeHtml(student.full_name || "Без імені")}
+                    </div>
+                  </div>
+                  <div style="font-size: 13px; font-weight: 800; color: var(--accent);">LVL ${lvl}</div>
+                  <div style="font-size: 13px;"><b style="color: var(--primary);">${xp}</b> <span style="color: var(--text-dim); font-size: 11px;">XP</span></div>
+                  <div><span class="teacher-pill ${attempts >= 5 ? "teacher-pill--danger" : "teacher-pill--ghost"}" style="padding: 2px 6px; font-size: 11px;">${attempts} спроб</span></div>
+                  <div style="font-size: 12px; color: var(--text-dim);">${escapeHtml(formatDate(student.updated_at)).replace(" ", "<br>")}</div>
+                  <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px;">
+  ${risky ? `<i class="ri-alarm-warning-fill" style="color: var(--warn); font-size: 18px;"></i>` : `<i class="ri-arrow-right-s-line" style="color: var(--text-dim); font-size: 20px;"></i>`}
+
+  <button
+    type="button"
+    class="teacher-btn teacher-btn--ghost teacher-btn--small teacher-btn--danger"
+    data-student-remove="${escapeHtml(student.id)}"
+    title="Видалити учня з класу"
+    style="padding: 4px 8px;"
+  >
+    <i class="ri-user-unfollow-line"></i>
+  </button>
+</div>
+                </article>
+              `;
+            }).join("")}
           </div>
         `
     }
   `;
 }
+function openCreateClassModal() {
+  const ui = getClassesUi();
+  ui.showCreateModal = true;
+  save?.();
+}
 
+function closeCreateClassModal() {
+  const ui = getClassesUi();
+  ui.showCreateModal = false;
+  save?.();
+}
 
+function renderCreateClassModal() {
+  const ui = getClassesUi();
 
-function renderListView() {
+  if (!ui.showCreateModal) return "";
+
   return `
-    <section class="teacher-panel">
-      <section class="teacher-card">
-        <div class="teacher-card__head">
-          <h4>Створення класу</h4>
+    <div
+      id="teacherCreateClassOverlay"
+      class="overlay active teacher-overlay"
+      data-close-create-class-overlay="1"
+    >
+      <div
+        class="modal teacher-create-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="teacherCreateClassModalTitle"
+      >
+        <div class="teacher-create-modal__head">
+          <div>
+            <div class="teacher-create-modal__eyebrow">НОВИЙ КЛАС</div>
+            <h3 id="teacherCreateClassModalTitle" class="teacher-create-modal__title">
+              Створити клас
+            </h3>
+          </div>
+
+          <button
+            type="button"
+            id="teacherCloseCreateClassBtn"
+            class="teacher-btn teacher-btn--ghost teacher-btn--small"
+          >
+            ✕
+          </button>
         </div>
 
-        <form id="teacherCreateClassForm" class="teacher-form-grid teacher-form-grid--stack">
+        <form id="teacherCreateClassForm" class="teacher-class-create-form">
           <input
             type="text"
             id="teacherClassNameInput"
@@ -636,263 +1294,436 @@ function renderListView() {
             type="text"
             id="teacherSchoolNameInput"
             class="teacher-input"
-            placeholder="Назва школи, наприклад Ліцей №2"
+            placeholder="Назва школи"
             value="${escapeHtml(state.user.teacherSchoolName || "")}"
           />
 
-          <label class="teacher-check">
-            <input type="checkbox" id="teacherShowClassGlobalInput" checked />
-            <span>Показувати клас у глобальному рейтингу</span>
-          </label>
+          <details class="teacher-class-advanced">
+            <summary>Додаткові налаштування</summary>
 
-          <label class="teacher-check">
-            <input type="checkbox" id="teacherShowSchoolGlobalInput" checked />
-            <span>Показувати школу в глобальному рейтингу</span>
-          </label>
+            <div class="teacher-class-advanced__body">
+              <label class="teacher-check">
+                <input type="checkbox" id="teacherShowClassGlobalInput" checked />
+                <span>Показувати клас у глобальному рейтингу</span>
+              </label>
 
-          <label class="teacher-check">
-            <input type="checkbox" id="teacherShowSchoolClassInput" checked />
-            <span>Показувати школу в рейтингу класу</span>
-          </label>
+              <label class="teacher-check">
+                <input type="checkbox" id="teacherShowSchoolGlobalInput" checked />
+                <span>Показувати школу в глобальному рейтингу</span>
+              </label>
 
-          <button id="teacherCreateClassBtn" type="submit" class="teacher-btn teacher-btn--primary">
-  Створити клас
-</button>
+              <label class="teacher-check">
+                <input type="checkbox" id="teacherShowSchoolClassInput" checked />
+                <span>Показувати школу в рейтингу класу</span>
+              </label>
+            </div>
+          </details>
+
+          <div class="teacher-create-modal__actions">
+            <button
+              type="button"
+              id="teacherCancelCreateClassBtn"
+              class="teacher-btn teacher-btn--ghost"
+            >
+              Скасувати
+            </button>
+
+            <button
+              id="teacherCreateClassBtn"
+              type="submit"
+              class="teacher-btn teacher-btn--primary"
+            >
+              Створити клас
+            </button>
+          </div>
         </form>
+      </div>
+    </div>
+  `;
+}
+
+function renderListView() {
+  const classesCount = teacherClasses.length;
+
+  return `
+    <section class="teacher-panel">
+      <section class="teacher-card teacher-classes-hero">
+        <div class="teacher-classes-hero__main">
+         <div class="teacher-classes-hero__eyebrow">КЛАСИ</div>
+<h3 class="teacher-classes-hero__title">Керування класами</h3>
+<p class="teacher-classes-hero__sub">
+  Створи новий клас або відкрий існуючий, щоб працювати з учнями.
+</p>
+        </div>
+
+        <div class="teacher-classes-hero__actions">
+          <div class="teacher-classes-hero__stat">
+            <span>Класів</span>
+            <b>${classesCount}</b>
+          </div>
+
+          <button
+            type="button"
+            id="teacherOpenCreateClassBtn"
+            class="teacher-btn teacher-btn--primary"
+          >
+            <i class="ri-add-line"></i>
+            Створити новий клас
+          </button>
+        </div>
       </section>
 
       <section class="teacher-card">
         <div class="teacher-card__head">
-          <h4>Список класів</h4>
+          <div>
+            <h4>Список класів</h4>
+            <p class="teacher-muted">Натисни на клас, щоб відкрити його сторінку</p>
+          </div>
         </div>
+
         ${renderClassesList()}
       </section>
+
     </section>
   `;
 }
 
-    function renderDetailsView() {
-      const cls = getActiveClass();
-      const stats = calcClassStats(activeStudents);
+function openClassSettingsModal() {
+  getClassesUi().showClassSettingsModal = true;
+  save?.();
+}
 
-      if (!cls) {
-        return `
-          <section class="teacher-panel">
-            <section class="teacher-card">
-              <div class="teacher-empty">Клас не знайдено.</div>
-            </section>
-          </section>
-        `;
-      }
+function closeClassSettingsModal() {
+  getClassesUi().showClassSettingsModal = false;
+  save?.();
+}
 
-      return `
-        <section class="teacher-panel">
-          <section class="teacher-class-hero">
-            <div class="teacher-class-hero__left">
-              <button class="teacher-btn teacher-btn--ghost" id="teacherBackToClassesBtn">
-                ← Назад до класів
-              </button>
+function scrollToClassAccessBlock() {
+  setTimeout(() => {
+    document.getElementById("teacherClassAccessBlock")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 30);
+}
 
-              <div>
-                <div class="teacher-class-hero__kicker">СТОРІНКА КЛАСУ</div>
-                <h3 class="teacher-class-hero__title">${escapeHtml(cls.name)}</h3>
-                <p class="teacher-class-hero__sub">
-  Код класу: <b>${escapeHtml(cls.code)}</b>
-  ${cls.school_name ? ` · Школа: <b>${escapeHtml(cls.school_name)}</b>` : ""}
-</p>
-              </div>
-            </div>
+function renderClassSettingsModal(cls) {
+  const ui = getClassesUi();
 
-            <div class="teacher-class-hero__actions">
-              <button class="teacher-btn teacher-btn--ghost" data-class-copy="${cls.code}">
-                <i class="ri-file-copy-line"></i> Скопіювати код
-              </button>
-            </div>
-          </section>
+  if (!ui.showClassSettingsModal || !cls) return "";
 
- 
-
-          <div class="teacher-class-summary">
-            <div class="teacher-class-summary__item">
-              <span>Учнів</span>
-              <b>${stats.count}</b>
-            </div>
-            <div class="teacher-class-summary__item">
-              <span>Середній XP</span>
-              <b>${stats.avgXp}</b>
-            </div>
-            <div class="teacher-class-summary__item">
-              <span>Лідер класу</span>
-              <b>${escapeHtml(stats.topName)}</b>
-            </div>
-            <div class="teacher-class-summary__item">
-              <span>Потрібна допомога</span>
-              <b>${stats.needHelp}</b>
-            </div>
+  return `
+    <div
+      id="teacherClassSettingsOverlay"
+      class="overlay active teacher-overlay"
+      data-close-class-settings-overlay="1"
+    >
+      <div
+        class="modal teacher-create-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="teacherClassSettingsTitle"
+      >
+        <div class="teacher-create-modal__head">
+          <div>
+            <div class="teacher-create-modal__eyebrow">НАЛАШТУВАННЯ КЛАСУ</div>
+            <h3 id="teacherClassSettingsTitle" class="teacher-create-modal__title">
+              ${escapeHtml(cls.name || cls.code)}
+            </h3>
           </div>
-          <section class="teacher-card">
-  <div class="teacher-card__head">
-    <h4>Налаштування класу</h4>
-  </div>
 
-<form id="teacherCreateClassForm" class="teacher-form-grid teacher-form-grid--stack">
-    <input
-      type="text"
-      id="teacherEditClassNameInput"
-      class="teacher-input"
-      placeholder="Назва класу"
-      value="${escapeHtml(cls.name || "")}"
-    />
+          <button
+            type="button"
+            id="teacherCloseClassSettingsBtn"
+            class="teacher-btn teacher-btn--ghost teacher-btn--small"
+          >
+            ✕
+          </button>
+        </div>
 
-    <input
-      type="text"
-      id="teacherEditSchoolNameInput"
-      class="teacher-input"
-      placeholder="Назва школи"
-      value="${escapeHtml(cls.school_name || "")}"
-    />
+        <form id="teacherEditClassForm" class="teacher-class-settings-form">
+          <div class="teacher-form-grid teacher-form-grid--2">
+            <input
+              type="text"
+              id="teacherEditClassNameInput"
+              class="teacher-input"
+              placeholder="Назва класу"
+              value="${escapeHtml(cls.name || "")}"
+            />
 
-    <label class="teacher-check">
-      <input
-        type="checkbox"
-        id="teacherEditShowClassGlobalInput"
-        ${cls.show_class_in_global ? "checked" : ""}
-      />
-      <span>Показувати клас у глобальному рейтингу</span>
-    </label>
-
-    <label class="teacher-check">
-      <input
-        type="checkbox"
-        id="teacherEditShowSchoolGlobalInput"
-        ${cls.show_school_in_global ? "checked" : ""}
-      />
-      <span>Показувати школу в глобальному рейтингу</span>
-    </label>
-
-    <label class="teacher-check">
-      <input
-        type="checkbox"
-        id="teacherEditShowSchoolClassInput"
-        ${cls.show_school_in_class ? "checked" : ""}
-      />
-      <span>Показувати школу в рейтингу класу</span>
-    </label>
-
-    <button id="teacherSaveClassSettingsBtn" class="teacher-btn teacher-btn--primary">
-      Зберегти налаштування
-    </button>
-  </form>
-</section>
-
-          <div class="teacher-grid teacher-grid--2">
-            <section class="teacher-card">
-              <div class="teacher-card__head">
-                <h4>Учні, яким потрібна допомога</h4>
-              </div>
-              ${renderNeedHelpBlock()}
-            </section>
-
-            <section class="teacher-card">
-  <div class="teacher-card__head">
-    <h4>Пояснення логіки</h4>
-  </div>
-  <div class="teacher-empty">
-    Спочатку працює правило класу. Якщо для конкретного учня задано індивідуальний доступ —
-    він має вищий пріоритет за правило класу.
-  </div>
-</section>
+            <input
+              type="text"
+              id="teacherEditSchoolNameInput"
+              class="teacher-input"
+              placeholder="Назва школи"
+              value="${escapeHtml(cls.school_name || "")}"
+            />
           </div>
-          ${renderClassAccessBlock(cls)}
 
-          <section class="teacher-card">
-            <div class="teacher-card__head">
-              <h4>Список учнів</h4>
+          <details class="teacher-class-advanced" open>
+            <summary>Налаштування відображення в рейтингу</summary>
+
+            <div class="teacher-class-advanced__body">
+              <label class="teacher-check">
+                <input
+                  type="checkbox"
+                  id="teacherEditShowClassGlobalInput"
+                  ${cls.show_class_in_global ? "checked" : ""}
+                />
+                <span>Показувати клас у глобальному рейтингу</span>
+              </label>
+
+              <label class="teacher-check">
+                <input
+                  type="checkbox"
+                  id="teacherEditShowSchoolGlobalInput"
+                  ${cls.show_school_in_global ? "checked" : ""}
+                />
+                <span>Показувати школу в глобальному рейтингу</span>
+              </label>
+
+              <label class="teacher-check">
+                <input
+                  type="checkbox"
+                  id="teacherEditShowSchoolClassInput"
+                  ${cls.show_school_in_class ? "checked" : ""}
+                />
+                <span>Показувати школу в рейтингу класу</span>
+              </label>
             </div>
-            ${renderStudentsTable()}
-          </section>
+          </details>
+
+          <div class="teacher-create-modal__actions">
+            <button
+              type="button"
+              id="teacherCancelClassSettingsBtn"
+              class="teacher-btn teacher-btn--ghost"
+            >
+              Скасувати
+            </button>
+
+            <button
+              id="teacherSaveClassSettingsBtn"
+              type="button"
+              class="teacher-btn teacher-btn--primary"
+            >
+              Зберегти налаштування
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function renderDetailsView() {
+  const cls = getActiveClass();
+  const stats = calcClassStats(activeStudents);
+
+  if (!cls) {
+    return `
+      <section class="teacher-panel">
+        <section class="teacher-card">
+          <div class="teacher-empty">Клас не знайдено.</div>
         </section>
-      `;
-    }
+      </section>
+    `;
+  }
+
+  // Перевіряємо, чи є учні, яким потрібна допомога
+  const hasRiskyStudents = stats.needHelp > 0;
+
+  return `
+  <div class="teacher-shell">
+    
+    <div class="teacher-dashboard-hero" style="margin-bottom: 20px;">
+      <div class="teacher-dashboard-hero__main">
+        <button class="teacher-btn teacher-btn--ghost teacher-btn--small" id="teacherBackToClassesBtn" style="margin-bottom: 16px; padding-left: 0; color: var(--text-dim);">
+          <i class="ri-arrow-left-line"></i> Назад до списку
+        </button>
+        
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
+          <div class="class-icon-bg" style="background: rgba(14, 165, 233, 0.15); color: var(--primary); padding: 14px; border-radius: 14px;">
+            <i class="ri-group-fill" style="font-size: 28px;"></i>
+          </div>
+          <div>
+            <div class="teacher-shell__eyebrow">КЕРУВАННЯ КЛАСОМ</div>
+            <h2 class="teacher-dashboard-hero__title" style="margin: 0;">${escapeHtml(cls.name)}</h2>
+          </div>
+        </div>
+        
+        <div class="teacher-dashboard-hero__actions">
+          <button class="teacher-btn teacher-btn--primary" data-open-assignments-class="${escapeHtml(cls.code)}">
+            <i class="ri-add-line"></i> Видати завдання
+          </button>
+          <button type="button" id="teacherOpenClassSettingsBtn" class="teacher-btn teacher-btn--ghost">
+            <i class="ri-settings-3-line"></i> Налаштування
+          </button>
+        </div>
+      </div>
+
+      <div class="teacher-dashboard-hero__side" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-content: center;">
+        <div class="teacher-dashboard-mini-stat">
+          <div class="teacher-dashboard-mini-stat__label" style="font-size: 11px;">Учнів</div>
+          <div class="teacher-dashboard-mini-stat__value" style="font-size: 20px;">${stats.count}</div>
+        </div>
+        <div class="teacher-dashboard-mini-stat">
+          <div class="teacher-dashboard-mini-stat__label" style="font-size: 11px;">Середній XP</div>
+          <div class="teacher-dashboard-mini-stat__value" style="font-size: 20px;">${stats.avgXp}</div>
+        </div>
+        <div class="teacher-dashboard-mini-stat" style="border-left-color: var(--accent);">
+          <div class="teacher-dashboard-mini-stat__label" style="font-size: 11px;">Лідер класу</div>
+          <div class="teacher-dashboard-mini-stat__value" style="font-size: 14px; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(stats.topName)}">
+            ${escapeHtml(stats.topName) || "—"}
+          </div>
+        </div>
+        <div class="teacher-dashboard-mini-stat ${stats.needHelp > 0 ? 'teacher-dashboard-mini-stat--warn' : ''}">
+          <div class="teacher-dashboard-mini-stat__label" style="font-size: 11px;">Відстають</div>
+          <div class="teacher-dashboard-mini-stat__value" style="font-size: 20px;">${stats.needHelp}</div>
+        </div>
+      </div>
+    </div>
+
+    <details class="premium-access-details" style="margin-bottom: 20px; border: 1px solid rgba(139, 92, 246, 0.2); background: rgba(139, 92, 246, 0.05); border-radius: 14px;">
+      <summary style="padding: 12px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; list-style: none; font-weight: 600; color: var(--accent);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <i class="ri-lock-unlock-line"></i>
+          <span>Швидке керування доступами (для всього класу)</span>
+        </div>
+        <i class="ri-arrow-down-s-line chevron"></i>
+      </summary>
+      <div id="teacherClassAccessBlock" style="padding: 0 20px 20px;">
+        ${renderClassAccessBlock(cls)}
+      </div>
+    </details>
+
+    ${hasRiskyStudents ? `
+      <section class="teacher-card" style="margin-bottom: 20px; border-color: rgba(245, 158, 11, 0.3);">
+        <div class="teacher-card__head" style="margin-bottom: 12px;">
+          <h4 style="margin: 0; color: var(--warn); display: flex; align-items: center; gap: 8px;">
+            <i class="ri-alarm-warning-line"></i> Потребують уваги
+          </h4>
+          <p class="teacher-muted" style="margin-top: 4px;">Учні, що відстають або мають багато невдалих спроб</p>
+        </div>
+        
+        <style>
+          #horizontalHelpList .teacher-help-compact-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 12px;
+          }
+        </style>
+        
+        <div id="horizontalHelpList">
+          ${renderNeedHelpBlock({ compact: true, limit: 6 })}
+        </div>
+      </section>
+    ` : ""}
+
+    <section class="teacher-card" style="width: 100%;">
+      <div class="teacher-card__head" style="margin-bottom: 10px;">
+        <h4 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+          <i class="ri-group-line" style="color: var(--primary);"></i> Всі учні класу
+        </h4>
+      </div>
+      ${renderStudentsTable()}
+    </section>
+
+  </div>
+  `;
+}
 
 function renderStudentView() {
   const student = getActiveStudent();
   const cls = getActiveClass();
 
   if (!student) {
-    return `
-      <section class="teacher-card">
-        <div class="teacher-empty">Учня не знайдено.</div>
-      </section>
-    `;
+    return `<section class="teacher-panel"><div class="teacher-empty">Учня не знайдено.</div></section>`;
   }
 
-  return `
-    <section class="teacher-panel">
-      <section class="teacher-card">
-        <div class="teacher-card__head">
-          <h4>Профіль учня</h4>
-          <button id="teacherBackToClassBtn" class="teacher-btn teacher-btn--ghost">
-            <i class="ri-arrow-left-line"></i>
-            Назад до класу
-          </button>
-        </div>
+  const xp = getStudentXP(student);
+  const attempts = getStudentAttempts(student);
+  const completed = getStudentCompletedCount(student);
+  const lvl = (window.App?.helpers?.levelFromXp) ? window.App.helpers.levelFromXp(xp).level : Math.floor(xp/200) + 1;
+  const lastActive = student.updated_at ? escapeHtml(formatDate(student.updated_at)) : "Немає даних";
+  
+  const ribbon = getStudentRibbonState(student);
+  let ribbonColor = "var(--primary)";
+  let ribbonBg = "rgba(14, 165, 233, 0.1)";
+  if (ribbon.tone === "danger") { ribbonColor = "var(--danger)"; ribbonBg = "rgba(244, 63, 94, 0.1)"; }
+  if (ribbon.tone === "success") { ribbonColor = "var(--success)"; ribbonBg = "rgba(34, 197, 94, 0.1)"; }
+  if (ribbon.tone === "warn") { ribbonColor = "var(--warn)"; ribbonBg = "rgba(251, 191, 36, 0.1)"; }
 
-        <div class="teacher-student-hero">
+  return `
+  <div class="teacher-shell">
+    
+    <div class="teacher-dashboard-hero" style="margin-bottom: 20px;">
+      <div class="teacher-dashboard-hero__main">
+        <button class="teacher-btn teacher-btn--ghost teacher-btn--small" data-back-to-class="${escapeHtml(student.class_code || activeClassCode || "")}" style="margin-bottom: 16px; padding-left: 0; color: var(--text-dim);">
+          <i class="ri-arrow-left-line"></i> Назад до класу
+        </button>
+        
+        <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 12px;">
+          <div class="class-icon-bg" style="background: var(--primary); color: #fff; padding: 14px; border-radius: 50%; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; box-shadow: 0 4px 15px rgba(14,165,233,0.3);">
+            ${(student.full_name || "Б")[0].toUpperCase()}
+          </div>
           <div>
-            <div class="teacher-student-hero__name">${escapeHtml(student.full_name || "Без імені")}</div>
-            <div class="teacher-student-hero__meta">
-              Клас: <b>${escapeHtml(cls?.name || student.class_code || activeClassCode || "—")}</b>
+            <div class="teacher-shell__eyebrow">ПРОФІЛЬ УЧНЯ</div>
+            <h2 class="teacher-dashboard-hero__title" style="margin: 0;">
+              ${escapeHtml(student.full_name || "Без імені")}
+            </h2>
+            
+            <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+              <span class="class-code-badge" style="border-color: transparent; background: rgba(255,255,255,0.05); font-family: var(--font);">
+                <i class="ri-group-line"></i> Клас: <b style="color: var(--primary);">${escapeHtml(cls?.name || student.class_code || activeClassCode || "—")}</b>
+              </span>
+              <span class="class-code-badge" style="border-color: transparent; background: rgba(255,255,255,0.05); font-family: var(--font);">
+                <i class="ri-time-line"></i> Був(ла): <b style="color: var(--text);">${lastActive}</b>
+              </span>
+              <span class="class-code-badge" style="border-color: ${ribbonColor}; background: ${ribbonBg}; color: ${ribbonColor}; font-family: var(--font);">
+                ${escapeHtml(ribbon.label)}
+              </span>
             </div>
           </div>
         </div>
 
-        <div class="teacher-stats-grid teacher-stats-grid--compact">
-          <article class="teacher-stat-card">
-            <div class="teacher-stat-card__label">XP</div>
-            <div class="teacher-stat-card__value">${getStudentXP(student)}</div>
-          </article>
-
-          <article class="teacher-stat-card">
-            <div class="teacher-stat-card__label">Спроби</div>
-            <div class="teacher-stat-card__value">${getStudentAttempts(student)}</div>
-          </article>
-
-          <article class="teacher-stat-card">
-            <div class="teacher-stat-card__label">Остання активність</div>
-            <div class="teacher-stat-card__value">${formatDate(student.updated_at)}</div>
-          </article>
-        </div>
-      </section>
-
-      <section class="teacher-card">
-        <div class="teacher-card__head">
-          <h4>Подальші дії</h4>
-        </div>
-
-        <div class="teacher-quick-actions">
-          <button
-            class="teacher-btn"
-            data-open-assignments-student="${escapeHtml(student.id)}"
-            data-open-assignments-classcode="${escapeHtml(student.class_code || activeClassCode || "")}"
-          >
-            <i class="ri-user-add-line"></i>
-            Видати завдання учню
+        <div class="teacher-dashboard-hero__actions" style="margin-top: 20px;">
+          <button class="teacher-btn teacher-btn--primary" data-open-assignments-student="${escapeHtml(student.id)}" data-open-assignments-classcode="${escapeHtml(student.class_code || activeClassCode || "")}">
+            <i class="ri-add-line"></i> Видати завдання
           </button>
-
-          <button
-            class="teacher-btn teacher-btn--ghost"
-            data-back-to-class="${escapeHtml(student.class_code || activeClassCode || "")}"
-          >
-            <i class="ri-arrow-left-line"></i>
-            Назад до класу
+          <button type="button" id="teacherRefreshStudentAssignmentsBtn" class="teacher-btn teacher-btn--ghost">
+            <i class="ri-refresh-line"></i> Оновити дані
           </button>
         </div>
-      </section>
+      </div>
 
-      ${renderStudentAssignmentsBlock()}
+      <div class="teacher-dashboard-hero__side" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-content: center;">
+        <div class="teacher-dashboard-mini-stat">
+          <div class="teacher-dashboard-mini-stat__label" style="font-size: 11px;">Рівень учня</div>
+          <div class="teacher-dashboard-mini-stat__value" style="font-size: 20px; color: var(--accent);">LVL ${lvl}</div>
+        </div>
+        <div class="teacher-dashboard-mini-stat">
+          <div class="teacher-dashboard-mini-stat__label" style="font-size: 11px;">Поточний XP</div>
+          <div class="teacher-dashboard-mini-stat__value" style="font-size: 20px;">${xp}</div>
+        </div>
+        <div class="teacher-dashboard-mini-stat">
+          <div class="teacher-dashboard-mini-stat__label" style="font-size: 11px;">Виконано завдань</div>
+          <div class="teacher-dashboard-mini-stat__value" style="font-size: 20px;">${completed}</div>
+        </div>
+        <div class="teacher-dashboard-mini-stat ${attempts >= 5 ? 'teacher-dashboard-mini-stat--warn' : ''}">
+          <div class="teacher-dashboard-mini-stat__label" style="font-size: 11px;">Невдалі спроби</div>
+          <div class="teacher-dashboard-mini-stat__value" style="font-size: 20px;">${attempts}</div>
+        </div>
+      </div>
+
+      ${renderStudentLearningStateBlock(student)}
+
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 20px; width: 100%;">
       ${renderStudentAccessBlock(student)}
-    </section>
+      ${renderStudentAssignmentsBlock()}
+    </div>
+
+  </div>
   `;
 }
 
@@ -922,6 +1753,21 @@ function renderStudentView() {
       await refreshAndRender();
     }
 
+    async function openStudentById(studentId, classCode) {
+  if (classCode) {
+    activeClassCode = classCode;
+  }
+
+  if (!activeClassCode) return;
+
+  await loadStudents(activeClassCode);
+
+  activeStudentId = studentId;
+  viewMode = "student";
+
+  await refreshAndRender();
+}
+
     async function refreshAndRender() {
       const root = $("teacherInnerView");
       if (!root) return;
@@ -948,22 +1794,38 @@ if (viewMode === "student" && activeStudentId) {
   activeStudentAssignments = [];
 }
       root.innerHTML = render();
-      bindEvents();
+
+const modalHost = document.getElementById("teacherModalHost");
+if (modalHost) {
+  modalHost.innerHTML = "";
+
+  const cls = getActiveClass();
+  const ui = getClassesUi();
+
+  if (viewMode === "details" && cls && ui.showClassSettingsModal) {
+    modalHost.innerHTML = renderClassSettingsModal(cls);
+  }
+
+  if (viewMode === "list" && ui.showCreateModal) {
+    modalHost.innerHTML = renderCreateClassModal();
+  }
+}
+
+bindEvents();
     }
 
 function bindEvents() {
   const root = $("teacherInnerView");
   if (!root) return;
 
-if (!root.dataset.createFormBound) {
-  root.addEventListener("submit", async (e) => {
-    const form = e.target;
+const createForm = document.getElementById("teacherCreateClassForm");
 
-    if (!(form instanceof HTMLFormElement)) return;
-    if (form.id !== "teacherCreateClassForm") return;
-
+if (createForm) {
+  createForm.onsubmit = async (e) => {
     e.preventDefault();
-    console.log("SUBMIT create class fired");
+
+    const form = e.currentTarget;
+    if (!(form instanceof HTMLFormElement)) return;
 
     const nameInput = form.querySelector("#teacherClassNameInput");
     const schoolInput = form.querySelector("#teacherSchoolNameInput");
@@ -977,14 +1839,6 @@ if (!root.dataset.createFormBound) {
     const showClassGlobal = !!showClassGlobalInput?.checked;
     const showSchoolGlobal = !!showSchoolGlobalInput?.checked;
     const showSchoolClass = !!showSchoolClassInput?.checked;
-
-    console.log("Form values:", {
-      name,
-      schoolName,
-      showClassGlobal,
-      showSchoolGlobal,
-      showSchoolClass
-    });
 
     if (!name) {
       toast("⚠️ Введи назву класу");
@@ -1000,8 +1854,6 @@ if (!root.dataset.createFormBound) {
     }
 
     try {
-      console.log("Before createClassRecord");
-
       const created = await store.createClassRecord({
         name,
         schoolName,
@@ -1010,18 +1862,23 @@ if (!root.dataset.createFormBound) {
         showSchoolInClass: showSchoolClass
       }, teacherClasses);
 
-      console.log("Created class:", created);
+      teacherClasses = [
+        { ...created, student_count: 0 },
+        ...teacherClasses.filter((cls) => cls.code !== created.code)
+      ];
 
-      teacherClasses.unshift(created);
+      state.user = state.user || {};
       state.user.teacherClasses = teacherClasses;
-      state.user.teacherSchoolName = schoolName || state.user.teacherSchoolName || "";
+      state.user.teacherSchoolName = schoolName;
+
+      getClassesUi().showCreateModal = false;
+      activeClassCode = created.code;
       save?.();
 
-      toast("✅ Клас створено");
-      form.reset();
+      toast(`✅ Клас ${created.name || name} створено`);
       await refreshAndRender();
     } catch (err) {
-      console.error("CREATE CLASS ERROR:", err);
+      console.error(err);
       toast(`❌ ${err?.message || "Не вдалося створити клас"}`);
     } finally {
       form.dataset.busy = "0";
@@ -1031,23 +1888,78 @@ if (!root.dataset.createFormBound) {
         createBtn.textContent = "Створити клас";
       }
     }
-  });
-
-  root.dataset.createFormBound = "1";
+  };
 }
 
-      document.querySelectorAll("[data-class-open]").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          const classCode = btn.getAttribute("data-class-open");
-          viewMode = "details";
-          activeClassCode = classCode;
-          activeStudentId = null;
-          await loadStudents(classCode);
-          await refreshAndRender();
-        });
-      });
+document.querySelectorAll("[data-class-open]").forEach((item) => {
+  item.addEventListener("click", async () => {
+    const classCode = item.getAttribute("data-class-open");
+    if (!classCode) return;
+
+    viewMode = "details";
+    activeClassCode = classCode;
+    activeStudentId = null;
+    await loadStudents(classCode);
+    await refreshAndRender();
+  });
+
+  item.addEventListener("keydown", async (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+
+    const classCode = item.getAttribute("data-class-open");
+    if (!classCode) return;
+
+    viewMode = "details";
+    activeClassCode = classCode;
+    activeStudentId = null;
+    await loadStudents(classCode);
+    await refreshAndRender();
+  });
+});
 
       document.querySelectorAll("[data-student-open]").forEach(btn => {
+        document.querySelectorAll("[data-student-remove]").forEach((btn) => {
+  btn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+
+    const studentId = btn.getAttribute("data-student-remove");
+    const student = activeStudents.find((item) => item.id === studentId);
+    if (!student) return;
+
+    if (!confirm(`Видалити учня "${student.full_name || "Без імені"}" з класу?`)) return;
+
+    btn.disabled = true;
+
+    try {
+      await removeStudentFromClass(studentId);
+
+      activeStudents = activeStudents.filter((item) => item.id !== studentId);
+
+      if (activeStudentId === studentId) {
+        activeStudentId = null;
+        viewMode = "details";
+      }
+
+      const cls = teacherClasses.find((item) => item.code === activeClassCode);
+      if (cls) {
+        cls.student_count = Math.max(0, Number(cls.student_count || 0) - 1);
+      }
+
+      state.user = state.user || {};
+      state.user.teacherClasses = teacherClasses;
+      save?.();
+
+      toast("🗑️ Учня прибрано з класу");
+      await refreshAndRender();
+    } catch (err) {
+      console.error(err);
+      toast("❌ Не вдалося прибрати учня з класу");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+});
         btn.addEventListener("click", async () => {
           activeStudentId = btn.getAttribute("data-student-open");
           viewMode = "student";
@@ -1149,6 +2061,27 @@ if (onlyRiskyInput) {
   };
 }
 
+const classOpenAllInput = document.querySelector("[data-class-open-all]");
+if (classOpenAllInput) {
+  classOpenAllInput.onchange = async () => {
+    const cls = getActiveClass();
+    if (!cls) return;
+
+    classOpenAllInput.disabled = true;
+
+    try {
+      await setClassOpenAllAccess(cls.code, !!classOpenAllInput.checked);
+      toast(classOpenAllInput.checked ? "✅ Для класу відкрито все" : "✅ Повернуто звичайний режим доступу");
+      await refreshAndRender();
+    } catch (err) {
+      console.error(err);
+      toast("❌ Не вдалося оновити загальний доступ класу");
+    } finally {
+      classOpenAllInput.disabled = false;
+    }
+  };
+}
+
 const refreshStudentAssignmentsBtn = $("teacherRefreshStudentAssignmentsBtn");
 if (refreshStudentAssignmentsBtn) {
   refreshStudentAssignmentsBtn.onclick = async () => {
@@ -1183,6 +2116,70 @@ if (refreshStudentAssignmentsBtn) {
           await refreshAndRender();
         };
       }
+
+const openClassSettingsBtn = $("teacherOpenClassSettingsBtn");
+if (openClassSettingsBtn) {
+  openClassSettingsBtn.onclick = async () => {
+    openClassSettingsModal();
+    await refreshAndRender();
+  };
+}
+
+const closeClassSettingsBtn = $("teacherCloseClassSettingsBtn");
+if (closeClassSettingsBtn) {
+  closeClassSettingsBtn.onclick = async () => {
+    closeClassSettingsModal();
+    await refreshAndRender();
+  };
+}
+
+const cancelClassSettingsBtn = $("teacherCancelClassSettingsBtn");
+if (cancelClassSettingsBtn) {
+  cancelClassSettingsBtn.onclick = async () => {
+    closeClassSettingsModal();
+    await refreshAndRender();
+  };
+}
+
+const classSettingsOverlay = $("teacherClassSettingsOverlay");
+if (classSettingsOverlay) {
+  classSettingsOverlay.addEventListener("click", async (e) => {
+    if (e.target !== classSettingsOverlay) return;
+    closeClassSettingsModal();
+    await refreshAndRender();
+  });
+}
+
+const scrollToClassAccessBtn = $("teacherScrollToClassAccessBtn");
+if (scrollToClassAccessBtn) {
+  scrollToClassAccessBtn.onclick = () => {
+    scrollToClassAccessBlock();
+  };
+}
+
+root.querySelectorAll("[data-open-student]").forEach((item) => {
+  item.addEventListener("click", async () => {
+    const studentId = item.getAttribute("data-open-student") || "";
+    if (!studentId) return;
+
+    activeStudentId = studentId;
+    viewMode = "student";
+    await refreshAndRender();
+  });
+
+  item.addEventListener("keydown", async (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+
+    const studentId = item.getAttribute("data-open-student") || "";
+    if (!studentId) return;
+
+    activeStudentId = studentId;
+    viewMode = "student";
+    await refreshAndRender();
+  });
+});
+
       root.querySelectorAll("[data-open-assignments-student]").forEach((btn) => {
   btn.addEventListener("click", async () => {
     const studentId = btn.getAttribute("data-open-assignments-student") || "";
@@ -1193,6 +2190,29 @@ if (refreshStudentAssignmentsBtn) {
       classCode,
       studentId
     });
+  });
+});
+
+root.querySelectorAll("[data-open-student]").forEach((item) => {
+  item.addEventListener("click", async () => {
+    const studentId = item.getAttribute("data-open-student") || "";
+    if (!studentId) return;
+
+    activeStudentId = studentId;
+    viewMode = "student";
+    await refreshAndRender();
+  });
+
+  item.addEventListener("keydown", async (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+
+    const studentId = item.getAttribute("data-open-student") || "";
+    if (!studentId) return;
+
+    activeStudentId = studentId;
+    viewMode = "student";
+    await refreshAndRender();
   });
 });
 
@@ -1208,6 +2228,38 @@ root.querySelectorAll("[data-back-to-class]").forEach((btn) => {
   });
 });
 
+const openCreateBtn = $("teacherOpenCreateClassBtn");
+if (openCreateBtn) {
+  openCreateBtn.onclick = () => {
+    openCreateClassModal();
+    refreshAndRender();
+  };
+}
+
+const closeCreateBtn = $("teacherCloseCreateClassBtn");
+if (closeCreateBtn) {
+  closeCreateBtn.onclick = () => {
+    closeCreateClassModal();
+    refreshAndRender();
+  };
+}
+
+const cancelCreateBtn = $("teacherCancelCreateClassBtn");
+if (cancelCreateBtn) {
+  cancelCreateBtn.onclick = () => {
+    closeCreateClassModal();
+    refreshAndRender();
+  };
+}
+
+const createOverlay = $("teacherCreateClassOverlay");
+if (createOverlay) {
+  createOverlay.addEventListener("click", (e) => {
+    if (e.target !== createOverlay) return;
+    closeCreateClassModal();
+    refreshAndRender();
+  });
+}
       const saveClassSettingsBtn = $("teacherSaveClassSettingsBtn");
       const editClassNameInput = $("teacherEditClassNameInput");
       const editSchoolNameInput = $("teacherEditSchoolNameInput");
@@ -1258,6 +2310,8 @@ root.querySelectorAll("[data-back-to-class]").forEach((btn) => {
             state.user.teacherSchoolName = nextSchoolName || state.user.teacherSchoolName || "";
             save();
 
+            closeClassSettingsModal();
+
             toast("✅ Налаштування класу збережено");
             await refreshAndRender();
           } catch (err) {
@@ -1270,7 +2324,22 @@ root.querySelectorAll("[data-back-to-class]").forEach((btn) => {
         };
       }
 
+document.querySelectorAll("[data-access-course-details]").forEach((el) => {
+  el.addEventListener("toggle", () => {
+    const courseId = el.getAttribute("data-course-id");
+    if (!courseId) return;
+    setAccessCourseOpen(courseId, el.open);
+  });
+});
 
+document.querySelectorAll("[data-access-module-details]").forEach((el) => {
+  el.addEventListener("toggle", () => {
+    const courseId = el.getAttribute("data-course-id");
+    const moduleId = el.getAttribute("data-module-id");
+    if (!courseId || !moduleId) return;
+    setAccessModuleOpen(courseId, moduleId, el.open);
+  });
+});
 
 
       root.querySelectorAll("[data-open-assignments-class]").forEach((btn) => {
@@ -1348,20 +2417,86 @@ root.querySelectorAll("[data-back-to-class]").forEach((btn) => {
           }
         });
       });
+      Array.from(document.querySelectorAll("[data-class-task-chip]")).forEach((chip) => {
+  chip.addEventListener("click", async () => {
+    const cls = getActiveClass();
+    if (!cls) return;
+
+    const courseId = chip.getAttribute("data-course-id");
+    const moduleId = chip.getAttribute("data-module-id");
+    const taskIndex = chip.getAttribute("data-task-index");
+    const currentState = chip.getAttribute("data-current-state") || "auto";
+    const nextState = getNextAccessState(currentState);
+
+    chip.disabled = true;
+
+    try {
+      await setClassTaskAccess(cls.code, courseId, moduleId, taskIndex, nextState);
+
+      const taskNo = Number(taskIndex) + 1;
+      const stateLabel =
+        nextState === "unlocked" ? "Відкрито" :
+        nextState === "locked" ? "Закрито" :
+        "Авто";
+
+      toast(`✅ Завдання ${taskNo}: ${stateLabel}`);
+      await refreshAndRender();
+    } catch (err) {
+      console.error(err);
+      toast("❌ Не вдалося оновити доступ завдання");
+    } finally {
+      chip.disabled = false;
+    }
+  });
+});
+Array.from(document.querySelectorAll("[data-student-task-chip]")).forEach((chip) => {
+  chip.addEventListener("click", async () => {
+    const student = getActiveStudent();
+    if (!student) return;
+
+    const courseId = chip.getAttribute("data-course-id");
+    const moduleId = chip.getAttribute("data-module-id");
+    const taskIndex = chip.getAttribute("data-task-index");
+    const currentState = chip.getAttribute("data-current-state") || "auto";
+    const nextState = getNextAccessState(currentState);
+
+    chip.disabled = true;
+
+    try {
+      await setStudentTaskAccess(student.id, courseId, moduleId, taskIndex, nextState);
+
+      const taskNo = Number(taskIndex) + 1;
+      const stateLabel =
+        nextState === "unlocked" ? "Відкрито" :
+        nextState === "locked" ? "Закрито" :
+        "Авто";
+
+      toast(`✅ Завдання ${taskNo}: ${stateLabel}`);
+      await refreshAndRender();
+    } catch (err) {
+      console.error(err);
+      toast("❌ Не вдалося оновити доступ завдання");
+    } finally {
+      chip.disabled = false;
+    }
+  });
+});
     }
 
     async function mount() {
-      await refreshAndRender();
-    }
+  resetTransientTeacherClassesUi();
+  await refreshAndRender();
+}
 
-    return {
-      render,
-      mount,
-      refreshAndRender,
-      loadStudents,
-
-      openClassByCode
-    };
+return {
+  render,
+  mount,
+  refreshAndRender,
+  loadStudents,
+  updateClassRecord,
+  openClassByCode,
+  openStudentById
+};
   }
 
   return { create };
