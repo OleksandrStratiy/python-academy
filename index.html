@@ -135,32 +135,60 @@
 
     <main class="main-content">
 
-      <header class="top-bar">
-        <div style="display:flex; align-items:center; gap: 14px;">
-          <button id="btnMobileMenu" class="btn-icon mobile-menu-btn"><i class="ri-menu-line"></i></button>
-          <div>
-            <div id="breadcrumbs" class="breadcrumbs">Головна</div>
+<header class="top-bar">
+  <div style="display:flex; align-items:center; gap: 14px;">
+    <button id="btnMobileMenu" class="btn-icon mobile-menu-btn">
+      <i class="ri-menu-line"></i>
+    </button>
+    <div id="breadcrumbs" class="breadcrumbs" style="font-weight: 700;">Головна</div>
+  </div>
 
-          <!-- LEVEL BAR -->
-          <div class="levelbar">
-            <div class="levelbar-row">
-              <span id="uiLevel">Level 1</span>
-              <span id="uiLevelXP">0/200 XP</span>
-            </div>
-            <div class="levelbar-outer">
-              <div id="uiLevelFill" class="levelbar-fill"></div>
-            </div>
-          </div>
+  <div style="display:flex; align-items:center; gap: 20px; flex-wrap: wrap;">
+    
+    <div style="position: relative; margin-right: 10px;">
+      <button id="uiNotificationBell" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); width: 38px; height: 38px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; position: relative;">
+        <i class="ri-notification-3-line" style="font-size: 18px; color: var(--text);"></i>
+        <span id="uiNotificationBadge" style="display: none; position: absolute; top: -3px; right: -3px; width: 12px; height: 12px; background: var(--danger); border-radius: 50%; border: 2px solid var(--bg); box-shadow: 0 0 8px var(--danger);"></span>
+      </button>
+
+      <div id="uiNotificationDropdown" style="display: none; position: absolute; top: 50px; right: -50px; width: 300px; background: rgba(30,41,59,0.98); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); z-index: 1000; overflow: hidden;">
+        <div style="padding: 14px 16px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.05); font-weight: 800; font-size: 13px; color: var(--text); display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 6px;"><i class="ri-notification-badge-fill" style="color: var(--primary);"></i> Сповіщення</div>
+          <span id="uiNotifCount" style="background: var(--danger); color: #fff; padding: 2px 8px; border-radius: 8px; font-size: 10px; letter-spacing: 0.05em;">0 нових</span>
         </div>
+        <div id="uiNotificationList" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column;">
+        </div>
+      </div>
+    </div>
 
-        <div class="streak">🔥 <span id="uiStreak">1</span> Day Streak</div>
-      </header>
+    <div style="display:flex; gap: 16px; align-items:center; font-size: 13px; font-weight: 700; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 20px;">
+      <span style="color: var(--accent); display:flex; align-items:center; gap: 4px;">
+        <i class="ri-medal-fill" style="font-size: 16px;"></i> <span id="uiRank">Beginner</span>
+      </span>
+      <span style="color: var(--primary); display:flex; align-items:center; gap: 4px;">
+        <i class="ri-star-smile-fill" style="font-size: 16px;"></i> <span id="uiTotalXP">0</span> XP
+      </span>
+    </div>
 
+    <div class="levelbar" style="min-width: 140px; margin: 0;">
+      <div class="levelbar-row">
+        <span id="uiLevel">Level 1</span>
+        <span id="uiLevelXP">0/200 XP</span>
+      </div>
+      <div class="levelbar-outer">
+        <div id="uiLevelFill" class="levelbar-fill"></div>
+      </div>
+    </div>
+
+    <div class="streak" style="margin: 0;">
+      🔥 <span id="uiStreak">0</span> Day Streak
+    </div>
+
+  </div>
+</header>
       <!-- HOME VIEW -->
        <div id="viewTeacher" class="view" style="background: var(--bg2); padding: 20px;">
-    <div class="card" style="max-width: 900px; margin: 0 auto;">
-      <h2 style="margin-bottom: 10px;">👨‍🏫 Кабінет вчителя</h2>
-      <p class="mutedish" style="margin-bottom: 24px;">Тут ти зможеш керувати своїми класами та бачити прогрес учнів.</p>
+    <div class="card" style="max-width: 1200px; margin: 0 auto;">
       
       <div id="teacherContent">
         <div style="text-align:center; padding: 40px; color: var(--text-dim);">
@@ -199,21 +227,10 @@
             </div>
           </div>
 
-          <div class="mentor-card">
-              <div class="mentor-avatar">👨‍💻</div>
-              <div>
-                <h3 class="mentor-title">Привіт! Я Олександр Стратій.</h3>
-                <p class="mentor-text">
-                  Я створив цей портал, щоб довести: програмування — це не складна математика, а творчість.
-                  Виконуй завдання, заробляй XP і ставай профі разом зі мною!
-                </p>
-              </div>
-            </div>
+
 
 
         </div>
-
-        <h3 class="section-title">Твій шлях навчання</h3>
         <div class="grid-courses" id="coursesList"></div>
         <section id="studentAssignmentsHome" style="margin-top:24px;"></section>
         
@@ -369,19 +386,19 @@
 
   <!-- SETTINGS MODAL -->
 <div id="settingsOverlay" class="overlay">
-    <div class="modal" style="max-width: 480px; padding: 0; overflow: hidden; background: var(--bg2); border: 1px solid var(--border);">
+    <div class="modal settings-modal">
       
-      <div style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02);">
+      <div class="settings-modal__head">
         <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px;">
           <i class="ri-settings-3-line" style="color: var(--text-dim);"></i> Налаштування
         </h2>
-        <button id="btnCloseSettings" style="background: transparent; border: none; color: var(--text-dim); font-size: 28px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-dim)'">&times;</button>
+        <button id="btnCloseSettings" class="settings-close">&times;</button>
       </div>
 
-      <div style="padding: 24px; max-height: 75vh; overflow-y: auto;">
+      <div class="settings-modal__body">
         
-        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid var(--border);">
-          <div id="setAvatar" style="width: 50px; height: 50px; border-radius: 14px; background: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; color: white;">
+        <div class="settings-user-card">
+          <div id="setAvatar" class="settings-avatar">
             ?
           </div>
           <div style="flex: 1;">
@@ -449,10 +466,22 @@
       </div>
     </div>
   </div>
-
+<div id="teacherModalHost"></div>
   <div id="toast" class="toast"></div>
 
+<script>
+  window.PRACTICE_DB = window.PRACTICE_DB || [];
 
+  window.addPracticeModule = function (moduleObj) {
+    if (!moduleObj || !moduleObj.id) return;
+
+    window.PRACTICE_DB.push({
+      ...moduleObj,
+      source: "practice",
+      teacherOnly: true
+    });
+  };
+</script>
   
 
   <script src="js/data/core.js"></script>
@@ -472,6 +501,14 @@
 <script src="js/data/python/m_functions.js"></script>
 <script src="js/data/python/m_oop.js"></script>
   <!-- потім додаси так само інші: m_vars.js, m_if.js, ... -->
+
+
+  <script src="js/data/python/practice/m_practice_print.js"></script>
+<script src="js/data/python/practice/m_practice_input.js"></script>
+<script src="js/data/python/practice/m_practice_if_else.js"></script>
+<script src="js/data/python/practice/m_practice_type.js"></script>
+<script src="js/data/python/practice/m_practice_varible.js"></script>
+<script src="js/data/python/practice/m_practice_while.js"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt-stdlib.js"></script>
@@ -495,6 +532,8 @@
 <script src="js/app/ui-home.js"></script>
 <script src="js/app/ui-course.js"></script>
 <script src="js/app/ui-leaderboard.js"></script>
+
+
 
 <script src="js/app/teacher/teacher-shell.js"></script>
 <script src="js/app/teacher/teacher-dashboard.js"></script>
