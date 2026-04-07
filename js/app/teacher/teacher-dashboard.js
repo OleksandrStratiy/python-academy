@@ -4,7 +4,7 @@ window.App.teacherDashboard = (function () {
   "use strict";
 
   function create(deps) {
-    const { $, state, save, toast, supa, onOpenTab, onOpenClass } = deps;
+    const { $, state, save, toast, supa, onOpenTab, onOpenClass, onOpenStudent } = deps;
 
     let dashboardClasses = [];
     let dashboardStudents = [];
@@ -82,6 +82,18 @@ window.App.teacherDashboard = (function () {
       });
       return map;
     }
+function getClassLabel(classCode) {
+  const cls = dashboardClasses.find((item) => item.code === classCode);
+
+  if (!cls && !classCode) return "Без класу";
+  if (!cls) return classCode || "—";
+
+  if (cls.name && cls.code) {
+    return `${cls.name} (${cls.code})`;
+  }
+
+  return cls.name || cls.code || "—";
+}
 
     function getNeedHelpStudents() {
       return [...dashboardStudents]
@@ -186,51 +198,55 @@ window.App.teacherDashboard = (function () {
       `;
     }
 
-    function renderClassesBlock() {
-      if (!dashboardClasses.length) {
-        return `
-          <div class="teacher-empty">
-            Класів поки немає.<br>
-            Спочатку створи клас у вкладці <b>«Класи»</b>.
+function renderClassesBlock() {
+  if (!dashboardClasses.length) {
+    return `
+      <div class="teacher-empty">
+        Класів поки немає.<br>
+        Спочатку створи клас у вкладці <b>«Класи»</b>.
+      </div>
+    `;
+  }
+
+  const studentCounts = getClassStudentCountMap();
+
+  return `
+    <div class="teacher-class-list teacher-class-list--dashboard">
+      ${dashboardClasses.map((cls) => `
+        <article
+          class="teacher-class-item teacher-class-item--dashboard"
+          data-dashboard-open-class="${escapeHtml(cls.code)}"
+          tabindex="0"
+          role="button"
+        >
+          <div class="teacher-class-item__main">
+            <div class="teacher-class-item__title">${escapeHtml(cls.name || cls.code)}</div>
+<div class="teacher-class-item__meta">
+  Код: <b>${escapeHtml(cls.code)}</b>
+  · Учнів: <b>${studentCounts[cls.code] || 0}</b>
+  ${cls.school_name ? ` · Школа: <b>${escapeHtml(cls.school_name)}</b>` : ""}
+</div>
+
+<div class="teacher-class-item__meta">
+  Оновлено: <b>${escapeHtml(formatDate(cls.updated_at))}</b>
+</div>
           </div>
-        `;
-      }
 
-      const studentCounts = getClassStudentCountMap();
-
-      return `
-        <div class="teacher-class-list">
-          ${dashboardClasses.map((cls) => `
-            <article class="teacher-class-item">
-              <div class="teacher-class-item__main">
-                <div class="teacher-class-item__title">${escapeHtml(cls.name || cls.code)}</div>
-                <div class="teacher-class-item__meta">
-                  Код: <b>${escapeHtml(cls.code)}</b>
-                  · Учнів: <b>${studentCounts[cls.code] || 0}</b>
-                </div>
-              </div>
-
-              <div class="teacher-class-item__actions">
-                <button
-                  class="teacher-btn teacher-btn--ghost"
-                  data-dashboard-copy-class="${escapeHtml(cls.code)}"
-                  title="Копіювати код"
-                >
-                  <i class="ri-file-copy-line"></i>
-                </button>
-
-                <button
-                  class="teacher-btn teacher-btn--ghost"
-                  data-dashboard-open-class="${escapeHtml(cls.code)}"
-                >
-                  Відкрити
-                </button>
-              </div>
-            </article>
-          `).join("")}
-        </div>
-      `;
-    }
+          <div class="teacher-class-item__actions">
+            <button
+              class="teacher-btn teacher-btn--ghost teacher-btn--small"
+              data-dashboard-copy-class="${escapeHtml(cls.code)}"
+              title="Копіювати код"
+              type="button"
+            >
+              <i class="ri-file-copy-line"></i>
+            </button>
+          </div>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
 
 function renderNeedHelpBlock() {
   const students = getNeedHelpStudents();
@@ -242,11 +258,19 @@ function renderNeedHelpBlock() {
   return `
     <div class="teacher-help-list">
       ${students.map((student) => `
-        <div class="teacher-help-item">
+        <article
+          class="teacher-help-item teacher-help-item--clickable"
+          data-dashboard-open-student="${escapeHtml(student.id)}"
+          data-dashboard-open-student-class="${escapeHtml(student.class_code || "")}"
+          tabindex="0"
+          role="button"
+        >
           <div>
             <div class="teacher-help-item__name">${escapeHtml(student.full_name || "Без імені")}</div>
             <div class="teacher-help-item__meta">
-              ${escapeHtml(student.class_code || "—")} · XP: ${getStudentXP(student)} · Оновлено: ${formatDate(student.updated_at)}
+              ${escapeHtml(getClassLabel(student.class_code))}
+              · XP: ${getStudentXP(student)}
+              · Оновлено: ${formatDate(student.updated_at)}
             </div>
           </div>
 
@@ -254,21 +278,8 @@ function renderNeedHelpBlock() {
             <div class="teacher-help-item__badge">
               ${getStudentAttempts(student)} спроб
             </div>
-
-            ${
-              student.class_code
-                ? `
-                  <button
-                    class="teacher-btn teacher-btn--ghost teacher-btn--small"
-                    data-dashboard-open-class="${escapeHtml(student.class_code)}"
-                  >
-                    До класу
-                  </button>
-                `
-                : ``
-            }
           </div>
-        </div>
+        </article>
       `).join("")}
     </div>
   `;
@@ -284,13 +295,20 @@ function renderTopStudentsBlock() {
   return `
     <div class="teacher-help-list">
       ${topStudents.map((student, index) => `
-        <div class="teacher-help-item">
+        <article
+          class="teacher-help-item teacher-help-item--clickable"
+          data-dashboard-open-student="${escapeHtml(student.id)}"
+          data-dashboard-open-student-class="${escapeHtml(student.class_code || "")}"
+          tabindex="0"
+          role="button"
+        >
           <div>
             <div class="teacher-help-item__name">
               #${index + 1} ${escapeHtml(student.full_name || "Без імені")}
             </div>
             <div class="teacher-help-item__meta">
-              ${escapeHtml(student.class_code || "—")} · Виконано: ${getStudentCompletedCount(student)}
+              ${escapeHtml(getClassLabel(student.class_code))}
+              · Виконано: ${getStudentCompletedCount(student)}
             </div>
           </div>
 
@@ -298,122 +316,163 @@ function renderTopStudentsBlock() {
             <div class="teacher-help-item__badge">
               ${getStudentXP(student)} XP
             </div>
-
-            ${
-              student.class_code
-                ? `
-                  <button
-                    class="teacher-btn teacher-btn--ghost teacher-btn--small"
-                    data-dashboard-open-class="${escapeHtml(student.class_code)}"
-                  >
-                    До класу
-                  </button>
-                `
-                : ``
-            }
           </div>
-        </div>
+        </article>
       `).join("")}
     </div>
   `;
 }
 
-    function render() {
-      const teacherName = state?.user?.name || "Вчитель";
-      const metrics = getMetrics();
+function render() {
+  const teacherName = state?.user?.name || "Вчитель";
+  const metrics = getMetrics();
 
-      return `
-        <section class="teacher-panel">
-          <div class="teacher-hero">
-            <div>
-              <div class="teacher-kicker">STRATIUM ACADEMY</div>
-              <h3 class="teacher-hero__title">Вітаю, ${escapeHtml(teacherName)}</h3>
-              <p class="teacher-hero__text">
-                Тут уже зібраний живий огляд по твоїх класах, учнях і ризиках.
-              </p>
-            </div>
+  return `
+    <div class="teacher-shell">
+      
+      <div class="teacher-dashboard-hero" style="margin-bottom: 20px;">
+        <div class="teacher-dashboard-hero__main">
+          <div class="teacher-shell__eyebrow">ОГЛЯД</div>
+          <h2 class="teacher-dashboard-hero__title">Привіт, ${escapeHtml(teacherName)}! 👋</h2>
+          
+          <p class="teacher-dashboard-hero__text">Ось що відбувається у твоїх <b>${metrics.totalClasses}</b> класах сьогодні. Тримай руку на пульсі.</p>
+          
+          <div class="teacher-dashboard-hero__actions">
+            <button class="teacher-btn teacher-btn--primary" type="button" data-dashboard-open-tab="assignments">
+              <i class="ri-add-line"></i> Видати завдання
+            </button>
+            <button class="teacher-btn teacher-btn--ghost" type="button" data-dashboard-open-tab="classes">
+              <i class="ri-user-add-line"></i> Новий клас
+            </button>
+          </div>
+        </div>
+        
+        <div class="teacher-dashboard-hero__side" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-content: center;">
+          
+          <div class="teacher-dashboard-mini-stat">
+            <div class="teacher-dashboard-mini-stat__label" style="font-size: 11px;">Всіх учнів</div>
+            <div class="teacher-dashboard-mini-stat__value" style="font-size: 20px;">${metrics.totalStudents}</div>
+          </div>
+          
+          <div class="teacher-dashboard-mini-stat" style="border-left-color: var(--success);">
+            <div class="teacher-dashboard-mini-stat__label" style="font-size: 11px;">Активні (7д)</div>
+            <div class="teacher-dashboard-mini-stat__value" style="font-size: 20px; color: var(--success);">${metrics.active7d}</div>
+          </div>
+          
+          <div class="teacher-dashboard-mini-stat">
+            <div class="teacher-dashboard-mini-stat__label" style="font-size: 11px;">Середній XP</div>
+            <div class="teacher-dashboard-mini-stat__value" style="font-size: 20px;">${metrics.avgXp}</div>
+          </div>
+          
+          <div class="teacher-dashboard-mini-stat teacher-dashboard-mini-stat--warn">
+            <div class="teacher-dashboard-mini-stat__label" style="font-size: 11px;">В ризику</div>
+            <div class="teacher-dashboard-mini-stat__value" style="font-size: 20px;">${metrics.needHelp}</div>
           </div>
 
-          <div class="teacher-stats-grid">
-            <article class="teacher-stat-card">
-              <div class="teacher-stat-card__label">Класи</div>
-              <div class="teacher-stat-card__value">${metrics.totalClasses}</div>
-            </article>
+        </div>
+      </div>
 
-            <article class="teacher-stat-card">
-              <div class="teacher-stat-card__label">Учні</div>
-              <div class="teacher-stat-card__value">${metrics.totalStudents}</div>
-            </article>
-
-            <article class="teacher-stat-card">
-              <div class="teacher-stat-card__label">Активні за 7 днів</div>
-              <div class="teacher-stat-card__value">${metrics.active7d}</div>
-            </article>
-
-            <article class="teacher-stat-card">
-              <div class="teacher-stat-card__label">Середній XP</div>
-              <div class="teacher-stat-card__value">${metrics.avgXp}</div>
-            </article>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; align-items: start;">
+        
+        <div class="teacher-card">
+          <div class="teacher-card__head">
+            <h4>🚨 Потребують допомоги</h4>
           </div>
-
-          <div class="teacher-grid teacher-grid--2">
-            <section class="teacher-card">
-              <div class="teacher-card__head">
-                <h4>Мої класи</h4>
-              </div>
-              ${renderClassesBlock()}
-            </section>
-
-            <section class="teacher-card">
-              <div class="teacher-card__head">
-                <h4>Учні, яким потрібна допомога</h4>
-              </div>
-              ${renderNeedHelpBlock()}
-            </section>
+          <div class="dash-scroll-wrap">
+            ${renderNeedHelpBlock()}
           </div>
+        </div>
 
-          <section class="teacher-card">
-            <div class="teacher-card__head">
-              <h4>Топ учнів</h4>
-            </div>
+        <div class="teacher-card">
+          <div class="teacher-card__head">
+            <h4>🏆 Топ учнів</h4>
+          </div>
+          <div class="dash-scroll-wrap">
             ${renderTopStudentsBlock()}
-          </section>
-        </section>
-      `;
-    }
+          </div>
+        </div>
 
-    function bindEvents() {
-      Array.from(document.querySelectorAll("[data-dashboard-copy-class]")).forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const code = btn.getAttribute("data-dashboard-copy-class");
-          if (!code) return;
+<div class="teacher-card">
+          <div class="teacher-card__head" style="display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="margin: 0;">🏫 Мої класи</h4>
+            <div style="display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--primary); background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.2); padding: 4px 10px; border-radius: 8px; font-weight: 600;">
+              <i class="ri-folder-2-line"></i> Усього: ${metrics.totalClasses}
+            </div>
+          </div>
+          <div class="dash-scroll-wrap">
+            ${renderClassesBlock()}
+          </div>
+        </div>
 
-          try {
-            await navigator.clipboard.writeText(code);
-            toast?.("✅ Код класу скопійовано");
-          } catch (err) {
-            console.error(err);
-            toast?.("❌ Не вдалося скопіювати код");
-          }
-        });
-      });
+      </div>
+    </div>
+  `;
+}
 
-      Array.from(document.querySelectorAll("[data-dashboard-open-class]")).forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const classCode = btn.getAttribute("data-dashboard-open-class");
-          if (!classCode) return;
-          await onOpenClass?.(classCode);
-        });
-      });
+function bindEvents() {
+  Array.from(document.querySelectorAll("[data-dashboard-copy-class]")).forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
 
-      Array.from(document.querySelectorAll("[data-dashboard-open-tab]")).forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const tab = btn.getAttribute("data-dashboard-open-tab");
-          if (!tab) return;
-          await onOpenTab?.(tab);
-        });
-      });
-    }
+      const code = btn.getAttribute("data-dashboard-copy-class");
+      if (!code) return;
+
+      try {
+        await navigator.clipboard.writeText(code);
+        toast?.("✅ Код класу скопійовано");
+      } catch (err) {
+        console.error(err);
+        toast?.("❌ Не вдалося скопіювати код");
+      }
+    });
+  });
+
+  Array.from(document.querySelectorAll("[data-dashboard-open-class]")).forEach((card) => {
+    card.addEventListener("click", async () => {
+      const classCode = card.getAttribute("data-dashboard-open-class");
+      if (!classCode) return;
+      await onOpenClass?.(classCode);
+    });
+
+    card.addEventListener("keydown", async (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+
+      const classCode = card.getAttribute("data-dashboard-open-class");
+      if (!classCode) return;
+      await onOpenClass?.(classCode);
+    });
+  });
+
+  Array.from(document.querySelectorAll("[data-dashboard-open-student]")).forEach((item) => {
+    item.addEventListener("click", async () => {
+      const studentId = item.getAttribute("data-dashboard-open-student");
+      const classCode = item.getAttribute("data-dashboard-open-student-class");
+
+      if (!studentId) return;
+      await onOpenStudent?.({ studentId, classCode });
+    });
+
+    item.addEventListener("keydown", async (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+
+      const studentId = item.getAttribute("data-dashboard-open-student");
+      const classCode = item.getAttribute("data-dashboard-open-student-class");
+
+      if (!studentId) return;
+      await onOpenStudent?.({ studentId, classCode });
+    });
+  });
+
+  Array.from(document.querySelectorAll("[data-dashboard-open-tab]")).forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const tab = btn.getAttribute("data-dashboard-open-tab");
+      if (!tab) return;
+      await onOpenTab?.(tab);
+    });
+  });
+}
 
     async function mount() {
       const root = $("teacherInnerView");
