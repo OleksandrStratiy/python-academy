@@ -5,39 +5,29 @@ window.App.teacherAssignmentStore = (function () {
 
   function create(deps) {
     const { supa } = deps;
-let cachedUserId = null;
-let cachedUserIdPromise = null;
+    let cachedUserId = null;
+    let cachedUserIdPromise = null;
+
     async function getCurrentUserId() {
-  if (!supa) return null;
+      if (!supa) return null;
+      if (cachedUserId) return cachedUserId;
+      if (cachedUserIdPromise) return cachedUserIdPromise;
 
-  if (cachedUserId) {
-    return cachedUserId;
-  }
+      cachedUserIdPromise = (async () => {
+        const { data: { user }, error } = await supa.auth.getUser();
+        if (error) throw error;
+        cachedUserId = user?.id || null;
+        cachedUserIdPromise = null;
+        return cachedUserId;
+      })();
 
-  if (cachedUserIdPromise) {
-    return cachedUserIdPromise;
-  }
-
-  cachedUserIdPromise = (async () => {
-    const {
-      data: { user },
-      error
-    } = await supa.auth.getUser();
-
-    if (error) throw error;
-
-    cachedUserId = user?.id || null;
-    cachedUserIdPromise = null;
-    return cachedUserId;
-  })();
-
-  try {
-    return await cachedUserIdPromise;
-  } catch (err) {
-    cachedUserIdPromise = null;
-    throw err;
-  }
-}
+      try {
+        return await cachedUserIdPromise;
+      } catch (err) {
+        cachedUserIdPromise = null;
+        throw err;
+      }
+    }
 
     function normalizeTaskRow(row) {
       return {
@@ -46,8 +36,8 @@ let cachedUserIdPromise = null;
         description: row.description || "",
         source: row.source || "teacher",
         solution_format: row.solution_format || "text",
-starter_code: row.starter_code || "",
-max_score: Number(row.max_score || 12),
+        starter_code: row.starter_code || "",
+        max_score: Number(row.max_score || 12),
         subject: row.subject || "",
         category: row.category || "",
         difficulty: row.difficulty || "",
@@ -69,6 +59,7 @@ function normalizeAssignmentRow(row) {
     student_id: row.student_id || null,
     title_snapshot: row.title_snapshot || "Без назви",
     description_snapshot: row.description_snapshot || "",
+    check_mode_snapshot: row.check_mode_snapshot || "manual",
     solution_format_snapshot: row.solution_format_snapshot || "text",
     max_score_snapshot: Number(row.max_score_snapshot || 12),
     note_for_student: row.note_for_student || "",
@@ -81,32 +72,29 @@ function normalizeAssignmentRow(row) {
     updated_at: row.updated_at || null
   };
 }
-function normalizeSubmissionRow(row, studentMap = {}) {
-  const studentId = row.student_id || null;
-  const studentMeta = studentId ? (studentMap[studentId] || null) : null;
 
-  return {
-    id: row.id,
-    assignment_id: row.assignment_id,
-    student_id: studentId,
-    submission_text: row.submission_text || "",
-    file_url: row.file_url || "",
-    file_name: row.file_name || "",
-    status: row.status || "submitted",
-    submitted_at: row.submitted_at || row.created_at || null,
-    reviewed_at: row.reviewed_at || null,
-    teacher_comment: row.teacher_comment || "",
-    points: row.points ?? null,
-    created_at: row.created_at || null,
-    updated_at: row.updated_at || null,
-    student_name:
-      studentMeta?.full_name ||
-      studentMeta?.name ||
-      row.student_name ||
-      "Учень",
-    student_email: row.student_email || ""
-  };
-}
+    function normalizeSubmissionRow(row, studentMap = {}) {
+      const studentId = row.student_id || null;
+      const studentMeta = studentId ? (studentMap[studentId] || null) : null;
+
+      return {
+        id: row.id,
+        assignment_id: row.assignment_id,
+        student_id: studentId,
+        submission_text: row.submission_text || "",
+        file_url: row.file_url || "",
+        file_name: row.file_name || "",
+        status: row.status || "submitted",
+        submitted_at: row.submitted_at || row.created_at || null,
+        reviewed_at: row.reviewed_at || null,
+        teacher_comment: row.teacher_comment || "",
+        points: row.points ?? null,
+        created_at: row.created_at || null,
+        updated_at: row.updated_at || null,
+        student_name: studentMeta?.full_name || studentMeta?.name || row.student_name || "Учень",
+        student_email: row.student_email || ""
+      };
+    }
 
     async function fetchTeacherClasses() {
       if (!supa) return [];
@@ -145,7 +133,8 @@ function normalizeSubmissionRow(row, studentMap = {}) {
       const { data, error } = await supa
         .from("task_bank")
         .select("*")
-        .or(`author_id.eq.${userId},is_public.eq.true`)
+        // ВИПРАВЛЕНО: додано подвійні лапки навколо ${userId}
+        .or(`author_id.eq."${userId}",is_public.eq.true`)
         .eq("is_active", true)
         .order("updated_at", { ascending: false });
 
@@ -158,26 +147,24 @@ function normalizeSubmissionRow(row, studentMap = {}) {
       const userId = await getCurrentUserId();
       if (!userId) throw new Error("Користувача не знайдено");
 
-const row = {
-  title: String(payload.title || "").trim(),
-  description: String(payload.description || "").trim(),
-  source: payload.source || "teacher",
-  solution_format: payload.solutionFormat || "text",
-  starter_code: payload.starterCode || "",
-  max_score: Math.max(1, Number(payload.maxScore || 12)),
-  subject: payload.subject || "",
-  category: payload.category || "",
-  difficulty: payload.difficulty || "",
-  author_id: userId,
-  is_public: !!payload.isPublic,
-  is_active: true,
-  updated_at: new Date().toISOString()
-};
+      const row = {
+        title: String(payload.title || "").trim(),
+        description: String(payload.description || "").trim(),
+        source: payload.source || "teacher",
+        solution_format: payload.solutionFormat || "text",
+        starter_code: payload.starterCode || "",
+        max_score: Math.max(1, Number(payload.maxScore || 12)),
+        subject: payload.subject || "",
+        category: payload.category || "",
+        difficulty: payload.difficulty || "",
+        author_id: userId,
+        is_public: !!payload.isPublic,
+        is_active: true,
+        updated_at: new Date().toISOString()
+      };
 
       if (!row.title) throw new Error("Укажи назву завдання");
       if (!row.description) throw new Error("Укажи умову завдання");
-
-
 
       const { data, error } = await supa
         .from("task_bank")
@@ -188,28 +175,30 @@ const row = {
       if (error) throw error;
       return normalizeTaskRow(data);
     }
-async function archiveTaskBankItem(taskId) {
-  if (!supa) throw new Error("Supabase не підключено");
-  const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Користувача не знайдено");
-  if (!taskId) throw new Error("Не знайдено завдання для видалення");
 
-  const { data, error } = await supa
-    .from("task_bank")
-    .update({
-      is_active: false,
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", taskId)
-    .eq("author_id", userId)
-    .select("id")
-    .single();
+    async function archiveTaskBankItem(taskId) {
+      if (!supa) throw new Error("Supabase не підключено");
+      const userId = await getCurrentUserId();
+      if (!userId) throw new Error("Користувача не знайдено");
+      if (!taskId) throw new Error("Не знайдено завдання для видалення");
 
-  if (error) throw error;
-  if (!data) throw new Error("Не вдалося видалити завдання");
+      const { data, error } = await supa
+        .from("task_bank")
+        .update({
+          is_active: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", taskId)
+        .eq("author_id", userId)
+        .select("id")
+        .single();
 
-  return true;
-}
+      if (error) throw error;
+      if (!data) throw new Error("Не вдалося видалити завдання");
+
+      return true;
+    }
+
     async function fetchAssignments() {
       if (!supa) return [];
       const userId = await getCurrentUserId();
@@ -224,143 +213,113 @@ async function archiveTaskBankItem(taskId) {
       if (error) throw error;
       return (data || []).map(normalizeAssignmentRow);
     }
+
     async function fetchAssignmentsForStudent(studentId, classCode) {
-  if (!supa) return [];
-  const userId = await getCurrentUserId();
-  if (!userId) return [];
-  if (!studentId || !classCode) return [];
-
-  const { data, error } = await supa
-    .from("assignments")
-    .select("*")
-    .eq("teacher_id", userId)
-    .eq("class_code", classCode)
-    .or(`student_id.eq.${studentId},and(target_type.eq.class,class_code.eq.${classCode})`)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  return (data || []).map(normalizeAssignmentRow);
-}
-
-async function fetchSubmissionsByAssignmentIds(assignmentIds = []) {
-  if (!supa) return [];
-  const userId = await getCurrentUserId();
-  if (!userId) return [];
-
-  const ids = Array.from(
-    new Set(
-      (assignmentIds || [])
-        .map((id) => String(id || "").trim())
-        .filter(Boolean)
-    )
-  );
-
-  if (!ids.length) return [];
-
-  const { data, error } = await supa
-    .from("assignment_submissions")
-    .select("*")
-    .in("assignment_id", ids)
-    .order("submitted_at", { ascending: false });
-
-  if (error) throw error;
-
-  const studentIds = Array.from(
-    new Set((data || []).map((row) => row.student_id).filter(Boolean))
-  );
-
-  let studentMap = {};
-
-  if (studentIds.length) {
-    const { data: students, error: studentsError } = await supa
-      .from("profiles")
-      .select("id, full_name, class_code")
-      .in("id", studentIds);
-
-    if (studentsError) throw studentsError;
-
-    studentMap = Object.fromEntries(
-      (students || []).map((student) => [student.id, student])
-    );
-  }
-
-  return (data || []).map((row) => normalizeSubmissionRow(row, studentMap));
-}
-    async function createAssignment(payload) {
-      if (!supa) throw new Error("Supabase не підключено");
+      if (!supa) return [];
       const userId = await getCurrentUserId();
-      if (!userId) throw new Error("Користувача не знайдено");
-
-      const task = payload.task;
-      if (!task?.id) throw new Error("Спочатку вибери завдання з бази");
-
-      const targetType = payload.targetType || "class";
-      const classCode = String(payload.classCode || "").trim();
-      const studentId = targetType === "student" ? String(payload.studentId || "").trim() : null;
-
-      if (!classCode) throw new Error("Спочатку вибери клас");
-      if (targetType === "student" && !studentId) {
-        throw new Error("Спочатку вибери учня");
-      }
-
-      const row = {
-        task_bank_id: task.id,
-        teacher_id: userId,
-        target_type: targetType,
-        class_code: classCode,
-        student_id: studentId || null,
-        title_snapshot: task.title || "Без назви",
-        description_snapshot: task.description || "",
-check_mode_snapshot: "manual",
-        solution_format_snapshot: task.solution_format || "text",
-        max_score_snapshot: Math.max(1, Number(task.max_score || 12)),
-        note_for_student: String(payload.noteForStudent || "").trim(),
-        due_at: payload.dueAt || null,
-        status: "active",
-        allow_late_submission: payload.allowLateSubmission !== false,
-        updated_at: new Date().toISOString()
-      };
+      if (!userId) return [];
+      if (!studentId || !classCode) return [];
 
       const { data, error } = await supa
         .from("assignments")
-        .insert(row)
         .select("*")
-        .single();
+        .eq("teacher_id", userId)
+        .eq("class_code", classCode)
+        // ВИПРАВЛЕНО: додано подвійні лапки
+        .or(`student_id.eq."${studentId}",and(target_type.eq.class,class_code.eq."${classCode}")`)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return normalizeAssignmentRow(data);
+      return (data || []).map(normalizeAssignmentRow);
     }
-    async function deleteAssignment(assignmentId) {
+
+    async function fetchSubmissionsByAssignmentIds(assignmentIds = []) {
+      if (!supa) return [];
+      const userId = await getCurrentUserId();
+      if (!userId) return [];
+
+      const ids = Array.from(
+        new Set(
+          (assignmentIds || [])
+            .map((id) => String(id || "").trim())
+            .filter(Boolean)
+        )
+      );
+
+      if (!ids.length) return [];
+
+      const { data, error } = await supa
+        .from("assignment_submissions")
+        .select("*")
+        .in("assignment_id", ids)
+        .order("submitted_at", { ascending: false });
+
+      if (error) throw error;
+
+      const studentIds = Array.from(
+        new Set((data || []).map((row) => row.student_id).filter(Boolean))
+      );
+
+      let studentMap = {};
+
+      if (studentIds.length) {
+        const { data: students, error: studentsError } = await supa
+          .from("profiles")
+          .select("id, full_name, class_code")
+          .in("id", studentIds);
+
+        if (studentsError) throw studentsError;
+
+        studentMap = Object.fromEntries(
+          (students || []).map((student) => [student.id, student])
+        );
+      }
+
+      return (data || []).map((row) => normalizeSubmissionRow(row, studentMap));
+    }
+
+async function createAssignment(payload) {
   if (!supa) throw new Error("Supabase не підключено");
   const userId = await getCurrentUserId();
   if (!userId) throw new Error("Користувача не знайдено");
-  if (!assignmentId) throw new Error("Не знайдено призначене завдання");
 
-  const { error } = await supa
-    .from("assignments")
-    .delete()
-    .eq("id", assignmentId)
-    .eq("teacher_id", userId);
+  const task = payload.task;
+  if (!task?.id) throw new Error("Спочатку вибери завдання з бази");
 
-  if (error) throw error;
-  return true;
-}
-async function updateAssignment(assignmentId, patch) {
-  if (!supa) throw new Error("Supabase не підключено");
-  const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Користувача не знайдено");
-  if (!assignmentId) throw new Error("Не знайдено призначене завдання");
+  const targetType = payload.targetType || "class";
+  const classCode = String(payload.classCode || "").trim();
+  const studentId = targetType === "student" ? String(payload.studentId || "").trim() : null;
 
-const safePatch = {
-  ...patch,
-  updated_at: new Date().toISOString()
-};
+  if (!classCode) throw new Error("Спочатку вибери клас");
+  if (targetType === "student" && !studentId) {
+    throw new Error("Спочатку вибери учня");
+  }
+
+  const rawStarterCode = String(task.starter_code || "").trim();
+  const isAutoModule = rawStarterCode.startsWith("__AUTO_MODULE__|");
+  const rawFormat = String(task.solution_format || "text");
+
+  const row = {
+    task_bank_id: task.id,
+    teacher_id: userId,
+    target_type: targetType,
+    class_code: classCode,
+    student_id: studentId || null,
+    title_snapshot: task.title || "Без назви",
+    description_snapshot: task.description || "",
+    check_mode_snapshot: isAutoModule ? "auto" : "manual",
+    solution_format_snapshot: isAutoModule ? "auto_module" : rawFormat,
+    max_score_snapshot: Math.max(1, Number(task.max_score || 12)),
+    note_for_student: String(payload.noteForStudent || "").trim(),
+    due_at: payload.dueAt || null,
+    status: "active",
+    allow_late_submission: payload.allowLateSubmission !== false,
+    updated_at: new Date().toISOString()
+  };
 
   const { data, error } = await supa
     .from("assignments")
-    .update(safePatch)
-    .eq("id", assignmentId)
-    .eq("teacher_id", userId)
+    .insert(row)
     .select("*")
     .single();
 
@@ -368,59 +327,98 @@ const safePatch = {
   return normalizeAssignmentRow(data);
 }
 
-async function reviewSubmission(submissionId, patch = {}) {
-  if (!supa) throw new Error("Supabase не підключено");
-  const userId = await getCurrentUserId();
-  if (!userId) throw new Error("Користувача не знайдено");
-  if (!submissionId) throw new Error("Не знайдено здачу для перевірки");
+    async function deleteAssignment(assignmentId) {
+      if (!supa) throw new Error("Supabase не підключено");
+      const userId = await getCurrentUserId();
+      if (!userId) throw new Error("Користувача не знайдено");
+      if (!assignmentId) throw new Error("Не знайдено призначене завдання");
 
-  const safePatch = {
-    ...patch,
-    reviewed_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
+      const { error } = await supa
+        .from("assignments")
+        .delete()
+        .eq("id", assignmentId)
+        .eq("teacher_id", userId);
 
-  const { data, error } = await supa
-    .from("assignment_submissions")
-    .update(safePatch)
-    .eq("id", submissionId)
-    .select("*")
-    .single();
-
-  if (error) throw error;
-
-  const studentId = data?.student_id || null;
-  let studentMap = {};
-
-  if (studentId) {
-    const { data: studentRow } = await supa
-      .from("profiles")
-      .select("id, full_name, class_code")
-      .eq("id", studentId)
-      .maybeSingle();
-
-    if (studentRow?.id) {
-      studentMap[studentRow.id] = studentRow;
+      if (error) throw error;
+      return true;
     }
-  }
 
-  return normalizeSubmissionRow(data, studentMap);
-}
-return {
-  getCurrentUserId,
-  fetchTeacherClasses,
-  fetchStudentsByClass,
-  fetchTaskBank,
-  createTaskBankItem,
-  archiveTaskBankItem,
-  fetchAssignments,
-  fetchAssignmentsForStudent,
-  fetchSubmissionsByAssignmentIds,
-  createAssignment,
-  deleteAssignment,
-  updateAssignment,
-  reviewSubmission
-};
+    async function updateAssignment(assignmentId, patch) {
+      if (!supa) throw new Error("Supabase не підключено");
+      const userId = await getCurrentUserId();
+      if (!userId) throw new Error("Користувача не знайдено");
+      if (!assignmentId) throw new Error("Не знайдено призначене завдання");
+
+      const safePatch = {
+        ...patch,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supa
+        .from("assignments")
+        .update(safePatch)
+        .eq("id", assignmentId)
+        .eq("teacher_id", userId)
+        .select("*")
+        .single();
+
+      if (error) throw error;
+      return normalizeAssignmentRow(data);
+    }
+
+    async function reviewSubmission(submissionId, patch = {}) {
+      if (!supa) throw new Error("Supabase не підключено");
+      const userId = await getCurrentUserId();
+      if (!userId) throw new Error("Користувача не знайдено");
+      if (!submissionId) throw new Error("Не знайдено здачу для перевірки");
+
+      const safePatch = {
+        ...patch,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supa
+        .from("assignment_submissions")
+        .update(safePatch)
+        .eq("id", submissionId)
+        .select("*")
+        .single();
+
+      if (error) throw error;
+
+      const studentId = data?.student_id || null;
+      let studentMap = {};
+
+      if (studentId) {
+        const { data: studentRow } = await supa
+          .from("profiles")
+          .select("id, full_name, class_code")
+          .eq("id", studentId)
+          .maybeSingle();
+
+        if (studentRow?.id) {
+          studentMap[studentRow.id] = studentRow;
+        }
+      }
+
+      return normalizeSubmissionRow(data, studentMap);
+    }
+
+    return {
+      getCurrentUserId,
+      fetchTeacherClasses,
+      fetchStudentsByClass,
+      fetchTaskBank,
+      createTaskBankItem,
+      archiveTaskBankItem,
+      fetchAssignments,
+      fetchAssignmentsForStudent,
+      fetchSubmissionsByAssignmentIds,
+      createAssignment,
+      deleteAssignment,
+      updateAssignment,
+      reviewSubmission
+    };
   }
 
   return { create };
