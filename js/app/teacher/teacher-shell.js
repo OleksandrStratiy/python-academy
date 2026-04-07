@@ -20,12 +20,19 @@ window.App.teacherShell = (function () {
 
       return `
         <section class="teacher-shell">
-          <div class="teacher-shell__head">
-            <div>
-              <h2 class="teacher-shell__title">👨‍🏫 Кабінет вчителя</h2>
-              <p class="teacher-shell__sub">Керування класами, учнями та завданнями</p>
-            </div>
-          </div>
+<div class="teacher-shell__head">
+  <div class="teacher-shell__hero">
+    <div class="teacher-shell__hero-badge">
+      <i class="ri-dashboard-3-line"></i>
+    </div>
+
+    <div class="teacher-shell__hero-copy">
+  <div class="teacher-shell__eyebrow">Робочий простір</div>
+  <h2 class="teacher-shell__title">Кабінет вчителя</h2>
+  <p class="teacher-shell__sub">Класи, учні та завдання — спокійно і без зайвого шуму.</p>
+</div>
+  </div>
+</div>
 
           <div class="teacher-tabs">
             <button class="teacher-tab ${currentTab === "dashboard" ? "active" : ""}" data-teacher-tab="dashboard">
