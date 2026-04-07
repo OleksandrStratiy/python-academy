@@ -117,6 +117,66 @@
     if (error) throw error;
   }
 
+  async function upsertAutoAssignmentCompletion(assignmentId, courseId, moduleId) {
+  if (!supa || !assignmentId || state?.user?.role !== "student") return false;
+
+  const { data: { user }, error: authError } = await supa.auth.getUser();
+  if (authError || !user?.id) return false;
+
+  const course = DB.find((item) => item.id === courseId);
+  const mod = course?.modules?.find((item) => item.id === moduleId);
+  const tasks = Array.isArray(mod?.tasks) ? mod.tasks : [];
+
+  if (!course || !mod || !tasks.length) return false;
+
+  const done = tasks.reduce((sum, _, index) => {
+    const taskId = uid(courseId, moduleId, index);
+    return sum + (completionState(taskId) ? 1 : 0);
+  }, 0);
+
+  if (done < tasks.length) return false;
+
+  const payload = {
+    assignment_id: assignmentId,
+    student_id: user.id,
+    submission_text: `Авто-практикум виконано: ${mod.title || moduleId}. Пройдено ${done}/${tasks.length} задач.`,
+    status: "reviewed",
+    submitted_at: new Date().toISOString(),
+    reviewed_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  const { error } = await supa
+    .from("assignment_submissions")
+    .upsert(payload, { onConflict: "assignment_id,student_id" });
+
+  if (error) throw error;
+  return true;
+}
+
+async function finalizeActiveAutoAssignment(courseId, moduleId) {
+  const active = state.activeAutoAssignment || null;
+  if (!active) return;
+
+  if (
+    String(active.courseId) !== String(courseId) ||
+    String(active.moduleId) !== String(moduleId)
+  ) {
+    return;
+  }
+
+  const saved = await upsertAutoAssignmentCompletion(
+    active.assignmentId,
+    courseId,
+    moduleId
+  );
+
+  if (saved) {
+    delete state.activeAutoAssignment;
+    save();
+    toast("✅ Авто-практикум зараховано у вкладці «Мої завдання»");
+  }
+}
 
   let cloudTimer = null;
   function scheduleCloudSync(getStateFn) {
@@ -341,6 +401,13 @@ function canOpenModule(courseId, moduleId) {
   if (classForced === "unlocked") return true;
   if (classForced === "locked") return false;
 
+  // якщо хоч одне завдання в модулі примусово відкрите — сам модуль теж відкритий
+  const studentTaskMap = state?.user?.taskAccess?.[courseId]?.[moduleId] || {};
+  if (Object.values(studentTaskMap).some(v => v === "unlocked")) return true;
+
+  const classTaskMap = state?.user?.classTaskAccess?.[courseId]?.[moduleId] || {};
+  if (Object.values(classTaskMap).some(v => v === "unlocked")) return true;
+
   if (index === 0) return true;
 
   const prev = modules[index - 1];
@@ -550,7 +617,8 @@ const uiLeaderboardApi = window.App.uiLeaderboard.create({
   supa,
   toast,
   setActiveView,
-  viewLeaderboard
+  viewLeaderboard,
+  renderSidebarHome
 });
 
 const renderLeaderboard = uiLeaderboardApi.renderLeaderboard;
@@ -1456,6 +1524,14 @@ _pendingInputResolve = null;
           updateStreak(state.user);
           save();
           updateUserUI();
+          
+                    if (isModuleCompleted(course.id, mod.id)) {
+            try {
+              await finalizeActiveAutoAssignment(course.id, mod.id);
+            } catch (e) {
+              console.error("Auto assignment sync error:", e);
+            }
+          }
 
           playSuccessSound(!!state.settings.sound);
           fireConfetti();
@@ -1642,13 +1718,6 @@ function renderByRoute() {
       renderByRoute();
     });
 
-if (false) on($("btnGoogle"), "click", async () => {
-  try {
-    await signInWithGoogle();
-  } catch {
-    toast("❌ Не вдалося увійти через Google");
-  }
-});
    // Створення затемнення для мобільного меню
     const sbOverlay = document.createElement("div");
     sbOverlay.className = "sidebar-overlay";
