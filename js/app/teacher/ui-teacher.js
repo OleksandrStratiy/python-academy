@@ -43,24 +43,30 @@ const classesApi = window.App.teacherClasses.create({
   }
 });
 
-    const dashboardApi = window.App.teacherDashboard.create({
-      $,
-      state,
-      save,
-      toast,
-      supa,
-      onOpenTab: async (tab) => {
-        shellApi.setTeacherTab(tab);
-        save?.();
-        await renderCurrentTab();
-      },
-      onOpenClass: async (classCode) => {
-        shellApi.setTeacherTab("classes");
-        save?.();
-        await renderCurrentTab();
-        await classesApi.openClassByCode(classCode);
-      }
-    });
+const dashboardApi = window.App.teacherDashboard.create({
+  $,
+  state,
+  save,
+  toast,
+  supa,
+  onOpenTab: async (tab) => {
+    shellApi.setTeacherTab(tab);
+    save?.();
+    await renderCurrentTab();
+  },
+  onOpenClass: async (classCode) => {
+    shellApi.setTeacherTab("classes");
+    save?.();
+    await renderCurrentTab();
+    await classesApi.openClassByCode(classCode);
+  },
+  onOpenStudent: async ({ studentId, classCode }) => {
+    shellApi.setTeacherTab("classes");
+    save?.();
+    await renderCurrentTab();
+    await classesApi.openStudentById(studentId, classCode);
+  }
+});
 
 const assignmentsApi = window.App.teacherAssignments.create({
   $,
