@@ -117,30 +117,55 @@
     if (error) throw error;
   }
 
-  async function upsertAutoAssignmentCompletion(assignmentId, courseId, moduleId) {
+function calculateAssignedAutoPoints({ attemptsFailed = 0, dueAt = null }) {
+  const start = 12;
+  const failed = Math.max(0, Number(attemptsFailed || 0));
+  const attemptPenalty = Math.floor(failed / 2);
+
+  let latePenalty = 0;
+  if (dueAt) {
+    const dueTs = new Date(dueAt).getTime();
+    if (!Number.isNaN(dueTs) && Date.now() > dueTs) {
+      latePenalty = 2;
+    }
+  }
+
+  const total = Math.max(1, start - attemptPenalty - latePenalty);
+
+  return {
+    start,
+    failed,
+    attemptPenalty,
+    latePenalty,
+    total,
+    isLate: latePenalty > 0
+  };
+}
+
+async function upsertAutoAssignmentCompletion(
+  assignmentId,
+  courseId,
+  moduleId,
+  taskIndex,
+  taskTitle = "",
+  points = null,
+  submissionText = ""
+) {
   if (!supa || !assignmentId || state?.user?.role !== "student") return false;
 
   const { data: { user }, error: authError } = await supa.auth.getUser();
   if (authError || !user?.id) return false;
 
-  const course = DB.find((item) => item.id === courseId);
-  const mod = course?.modules?.find((item) => item.id === moduleId);
-  const tasks = Array.isArray(mod?.tasks) ? mod.tasks : [];
-
-  if (!course || !mod || !tasks.length) return false;
-
-  const done = tasks.reduce((sum, _, index) => {
-    const taskId = uid(courseId, moduleId, index);
-    return sum + (completionState(taskId) ? 1 : 0);
-  }, 0);
-
-  if (done < tasks.length) return false;
+  const taskId = uid(courseId, moduleId, taskIndex);
+  const isDoneNow = !!completionState(taskId);
+  if (!isDoneNow) return false;
 
   const payload = {
     assignment_id: assignmentId,
     student_id: user.id,
-    submission_text: `Авто-практикум виконано: ${mod.title || moduleId}. Пройдено ${done}/${tasks.length} задач.`,
+    submission_text: submissionText || `Авто-завдання виконано: ${taskTitle || `Завдання ${Number(taskIndex) + 1}`}.`,
     status: "reviewed",
+    points,
     submitted_at: new Date().toISOString(),
     reviewed_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
@@ -154,27 +179,118 @@
   return true;
 }
 
-async function finalizeActiveAutoAssignment(courseId, moduleId) {
+async function finalizeActiveAutoAssignment(courseId, moduleId, taskIndex, taskTitle = "") {
   const active = state.activeAutoAssignment || null;
-  if (!active) return;
+  if (!active) return null;
 
   if (
     String(active.courseId) !== String(courseId) ||
-    String(active.moduleId) !== String(moduleId)
+    String(active.moduleId) !== String(moduleId) ||
+    Number(active.taskIndex) !== Number(taskIndex)
   ) {
-    return;
+    return null;
   }
+
+  const taskId = uid(courseId, moduleId, taskIndex);
+  const score = calculateAssignedAutoPoints({
+    attemptsFailed: getAttempts(taskId),
+    dueAt: active.dueAt || null
+  });
+
+  const summary =
+    `Авто-завдання виконано: ${taskTitle || `Завдання ${Number(taskIndex) + 1}`}. ` +
+    `Бал: ${score.total}/12. ` +
+    `Невдалих спроб: ${score.failed}. ` +
+    `${score.isLate ? "Прострочено." : "Вчасно."}`;
 
   const saved = await upsertAutoAssignmentCompletion(
     active.assignmentId,
     courseId,
-    moduleId
+    moduleId,
+    taskIndex,
+    taskTitle,
+    score.total,
+    summary
   );
 
-  if (saved) {
-    delete state.activeAutoAssignment;
-    save();
-    toast("✅ Авто-практикум зараховано у вкладці «Мої завдання»");
+if (saved) {
+  state.activeAutoAssignment = {
+    ...active,
+    completedAt: new Date().toISOString(),
+    isCompleted: true
+  };
+  save();
+  toast("✅ Авто-завдання зараховано у вкладці «Мої завдання»");
+}
+
+  return null;
+}
+
+function restoreSuccessOverlayXpMode() {
+  const baseLabel = $("xpBase")?.parentElement?.querySelector("span");
+  const sniperLabel = $("xpSniper")?.parentElement?.querySelector("span");
+  const speedLabel = $("xpSpeed")?.parentElement?.querySelector("span");
+  const streakLabel = $("xpStreak")?.parentElement?.querySelector("span");
+  const totalLabel = $("xpTotal")?.parentElement?.querySelector("span");
+
+  if (baseLabel) baseLabel.textContent = "⭐ Базові XP:";
+  if (sniperLabel) sniperLabel.textContent = "🎯 Снайпер:";
+  if (speedLabel) speedLabel.textContent = "⚡ Швидкість:";
+  if (streakLabel) streakLabel.textContent = "🔥 Бонус за стрік:";
+  if (totalLabel) totalLabel.textContent = "Усього:";
+
+  const btnNext = $("btnSuccessNext");
+  if (btnNext) {
+    btnNext.style.display = "";
+    btnNext.textContent = "Далі ➔";
+  }
+
+  const btnStay = $("btnSuccessStay");
+  if (btnStay) {
+    btnStay.textContent = "👀 Переглянути мій код";
+  }
+}
+
+function showAssignedAutoSuccessOverlay(taskTitle, score) {
+  const overlay = $("successOverlay");
+  if (!overlay) {
+    toast(`✅ Зараховано: ${score.total}/12 балів`);
+    return;
+  }
+
+  const baseLabel = $("xpBase")?.parentElement?.querySelector("span");
+  const sniperLabel = $("xpSniper")?.parentElement?.querySelector("span");
+  const speedLabel = $("xpSpeed")?.parentElement?.querySelector("span");
+  const streakLabel = $("xpStreak")?.parentElement?.querySelector("span");
+  const totalLabel = $("xpTotal")?.parentElement?.querySelector("span");
+
+  if (baseLabel) baseLabel.textContent = "Старт:";
+  if (sniperLabel) sniperLabel.textContent = "Штраф за спроби:";
+  if (speedLabel) speedLabel.textContent = "Штраф за прострочку:";
+  if (streakLabel) streakLabel.textContent = "Невдалі спроби:";
+  if (totalLabel) totalLabel.textContent = "Підсумок:";
+
+  $("successTaskName").textContent = taskTitle || "Авто-завдання виконано";
+  $("xpBase").textContent = `${score.start}`;
+  $("xpSniper").textContent = `-${score.attemptPenalty}`;
+  $("xpSpeed").textContent = `-${score.latePenalty}`;
+  $("xpStreak").textContent = `${score.failed}`;
+  $("xpTotal").textContent = `${score.total} / 12 балів`;
+
+  overlay.classList.add("active");
+
+  const btnNext = $("btnSuccessNext");
+  if (btnNext) {
+    btnNext.style.display = "none";
+  }
+
+  const btnStay = $("btnSuccessStay");
+  if (btnStay) {
+    btnStay.textContent = "📚 До моїх завдань";
+    btnStay.onclick = () => {
+      overlay.classList.remove("active");
+      goto("/home");
+    };
   }
 }
 
@@ -1184,36 +1300,87 @@ let myCodeMirror = null;
   // Lesson render
   // ===========================
   function renderLesson(courseId, moduleId, taskIdx) {
-    const course = DB.find(c => c.id === courseId);
-    const mod = course?.modules.find(m => m.id === moduleId);
-    const idx = Number(taskIdx);
+let course = DB.find(c => c.id === courseId);
+let mod = course?.modules.find(m => m.id === moduleId);
+const idx = Number(taskIdx);
 
-    const refs = visibleTaskRefs(courseId, moduleId);
-    const ref = refs[idx];
+// ПІДТРИМКА PRACTICE_DB
+if ((!course || !mod) && String(courseId) === "practice") {
+  const practiceModule = (window.PRACTICE_DB || []).find(
+    (item) => String(item.id) === String(moduleId)
+  );
 
-    if (course && mod && !canOpenModule(courseId, moduleId)) {
-      toast("🔒 Цей модуль поки заблокований");
-      goto(`/course/${courseId}`);
-      return;
-    }
+  if (practiceModule) {
+    course = {
+      id: "practice",
+      title: "Практикум",
+      modules: [practiceModule]
+    };
+    mod = practiceModule;
+  }
+}
 
-    if (!course || !mod || !ref) {
-      toast("Урок не знайдено (можливо, рівень не вибрано або в цьому рівні немає задач)");
-      goto(`/course/${courseId}`);
-      return;
-    }
+// запасний варіант на майбутнє:
+// якщо practice колись стане курсом з modules
+if (!course || !mod) {
+  const practiceCourse = (window.PRACTICE_DB || []).find(
+    (item) => String(item.id) === String(courseId)
+  );
+  const nestedPracticeModule = practiceCourse?.modules?.find(
+    (item) => String(item.id) === String(moduleId)
+  );
 
-    const task = ref.t;
-    const origIdx = ref.origIdx;
+  if (practiceCourse && nestedPracticeModule) {
+    course = {
+      id: practiceCourse.id,
+      title: practiceCourse.title || "Практикум",
+      modules: practiceCourse.modules || []
+    };
+    mod = nestedPracticeModule;
+  }
+}
+
+
+  const refs = visibleTaskRefs(courseId, moduleId);
+  const ref = refs[idx];
+
+  // Для practice не відправляємо на /course/practice,
+  // бо такого "курсу" в звичайній DB немає
+  if (course && mod && String(courseId) !== "practice" && !canOpenModule(courseId, moduleId)) {
+    toast("🔒 Цей модуль поки заблокований");
+    goto(`/course/${courseId}`);
+    return;
+  }
+
+  if (!course || !mod || !ref) {
+    toast("Урок не знайдено");
+    goto("/home");
+    return;
+  }
+
+  const task = ref.t;
+  const origIdx = ref.origIdx;
+
+const activeAuto = state.activeAutoAssignment || null;
+const isAssignedAutoTask =
+  !!activeAuto &&
+  String(activeAuto.assignmentId || "").trim() !== "" &&
+  String(activeAuto.courseId) === String(courseId) &&
+  String(activeAuto.moduleId) === String(moduleId) &&
+  Number(activeAuto.taskIndex) === Number(origIdx);
 
     if (!canOpenTask(courseId, moduleId, origIdx)) {
       const firstOpenIdx = refs.findIndex(r => canOpenTask(courseId, moduleId, r.origIdx));
       toast("🔒 Це завдання тимчасово заблоковане вчителем");
       if (firstOpenIdx >= 0 && firstOpenIdx !== idx) {
         goto(`/lesson/${courseId}/${moduleId}/${firstOpenIdx}`);
-      } else {
-        goto(`/course/${courseId}`);
-      }
+     } else {
+  if (String(courseId) === "practice") {
+    goto("/home");
+  } else {
+    goto(`/course/${courseId}`);
+  }
+}
       return;
     }
 
@@ -1396,20 +1563,34 @@ let myCodeMirror = null;
       hb.style.display = hb.style.display === "block" ? "none" : "block";
     };
 
-    $("btnPrev").onclick = () => {
-      if (idx > 0) goto(`/lesson/${course.id}/${mod.id}/${idx - 1}`);
-      else goto(`/course/${course.id}`);
-    };
+if (isAssignedAutoTask) {
+  $("btnPrev").style.display = "none";
+  $("btnNext").style.display = "none";
+  $("btnNext").classList.remove("unlocked");
+} else {
+  $("btnPrev").style.display = "";
+  $("btnNext").style.display = "";
 
-    $("btnNext").onclick = () => {
-      if (!$("btnNext").classList.contains("unlocked")) return;
-      if (idx < refs.length - 1) goto(`/lesson/${course.id}/${mod.id}/${idx + 1}`);
-      else goto(`/course/${course.id}`);
-    };
+  $("btnPrev").onclick = () => {
+    if (idx > 0) goto(`/lesson/${course.id}/${mod.id}/${idx - 1}`);
+    else {
+      if (String(course.id) === "practice") {
+        goto("/home");
+      } else {
+        goto(`/course/${course.id}`);
+      }
+    }
+  };
 
-    // unlock next if already completed
-    $("btnNext").classList.remove("unlocked");
-    if (completionState(id)) $("btnNext").classList.add("unlocked");
+  $("btnNext").onclick = () => {
+    if (!$("btnNext").classList.contains("unlocked")) return;
+    if (idx < refs.length - 1) goto(`/lesson/${course.id}/${mod.id}/${idx + 1}`);
+    else goto(`/course/${course.id}`);
+  };
+
+  $("btnNext").classList.remove("unlocked");
+  if (completionState(id)) $("btnNext").classList.add("unlocked");
+}
 
   enableTermInput(false);
   _pendingInputResolve = null;
@@ -1492,109 +1673,149 @@ _pendingInputResolve = null;
      // ==============================
       // SUCCESS (Всі тести пройдені)
       // ==============================
-      const already = !!completionState(id);
-      
-      if (!already) {
-        const spoiledNow = isSpoiled(id);
-        
-        if (!spoiledNow) {
-          // --- ВАРІАНТ 1: Пройдено чесно, вперше (Даємо XP і Бонуси) ---
-          
-          setCompleted(id, "xp");
+const already = !!completionState(id);
 
-          // Зберігаємо переможний код назавжди!
-          state.user.solutions = state.user.solutions || {};
-          state.user.solutions[id] = myCodeMirror.getValue();
+if (!already) {
+  const spoiledNow = isSpoiled(id);
 
-          // 1) рахуємо бонуси
-          const baseXp = task.xp || 0;
-          const attemptsBefore = getAttempts(id);
-          const bonuses = calculateBonuses({
-            baseXp,
-            attemptsBefore,
-            taskId: id,
-            courseId: course.id
-          });
+  // === ВЧИТЕЛЬСЬКЕ АВТО-ЗАВДАННЯ ===
+  if (isAssignedAutoTask) {
+    setCompleted(id, "no_xp");
 
-          const totalXP = baseXp + bonuses.sniper + bonuses.speed + bonuses.streakBonus;
+    state.user.solutions = state.user.solutions || {};
+    state.user.solutions[id] = myCodeMirror.getValue();
 
-          // 2) нараховуємо XP
-          state.user.xp += totalXP;
+    updateStreak(state.user);
+    save();
+    updateUserUI();
 
-          updateStreak(state.user);
-          save();
-          updateUserUI();
-          
-                    if (isModuleCompleted(course.id, mod.id)) {
-            try {
-              await finalizeActiveAutoAssignment(course.id, mod.id);
-            } catch (e) {
-              console.error("Auto assignment sync error:", e);
-            }
-          }
+    let score = null;
+    try {
+      score = await finalizeActiveAutoAssignment(
+        course.id,
+        mod.id,
+        origIdx,
+        task.title || `Завдання ${origIdx + 1}`
+      );
+    } catch (e) {
+      console.error("Auto assignment sync error:", e);
+    }
 
-          playSuccessSound(!!state.settings.sound);
-          fireConfetti();
+    playSuccessSound(!!state.settings.sound);
+    fireConfetti();
 
-          // 3) модалка
-          $("successTaskName").textContent = task.title;
-          $("xpBase").textContent   = `+${baseXp}`;
-          $("xpSniper").textContent = bonuses.sniper ? `+${bonuses.sniper}` : "0";
-          $("xpSpeed").textContent  = bonuses.speed ? `+${bonuses.speed}` : "0";
-          $("xpStreak").textContent = bonuses.streakBonus ? `+${bonuses.streakBonus}` : "0";
-          $("xpTotal").textContent  = `+${totalXP} XP`;
+    if (!score) {
+      const fallbackTaskId = uid(course.id, mod.id, origIdx);
+      score = calculateAssignedAutoPoints({
+        attemptsFailed: getAttempts(fallbackTaskId),
+        dueAt: activeAuto?.dueAt || null
+      });
+    }
 
-          const successOverlay = $("successOverlay");
-          if (successOverlay) {
-            successOverlay.classList.add("active");
+    showAssignedAutoSuccessOverlay(task.title, score);
+  }
 
-            // Кнопка "Далі"
-            $("btnSuccessNext").onclick = () => {
-              successOverlay.classList.remove("active");
-              if (idx < refs.length - 1) goto(`/lesson/${course.id}/${mod.id}/${idx + 1}`);
-              else goto(`/course/${course.id}`);
-            };
+  // === ЗВИЧАЙНЕ КУРСОВЕ ЗАВДАННЯ З XP ===
+  else if (!spoiledNow) {
+    setCompleted(id, "xp");
 
-            // Кнопка "Переглянути мій код"
-            const btnStay = $("btnSuccessStay");
-            if (btnStay) {
-              btnStay.onclick = () => {
-                successOverlay.classList.remove("active");
-                $("btnNext").classList.add("unlocked"); // Розблоковуємо кнопку далі внизу екрана
-              };
-            }
-          } else {
-            toast(`✅ SUCCESS! +${totalXP} XP`);
-            $("btnNext").classList.add("unlocked");
-          }
+    state.user.solutions = state.user.solutions || {};
+    state.user.solutions[id] = myCodeMirror.getValue();
 
-        } else {
-          // --- ВАРІАНТ 2: Пройдено вперше, але відкрив рішення (Без XP) ---
-          setCompleted(id, "no_xp");
-          
-          // Теж зберігаємо його варіант коду
-          state.user.solutions = state.user.solutions || {};
-          state.user.solutions[id] = myCodeMirror.getValue();
-          
-          updateStreak(state.user);
-          save();
-          updateUserUI();
-          toast("✅ Зараховано, але без XP (було відкрито рішення)");
+    const baseXp = task.xp || 0;
+    const attemptsBefore = getAttempts(id);
+    const bonuses = calculateBonuses({
+      baseXp,
+      attemptsBefore,
+      taskId: id,
+      courseId: course.id
+    });
+
+    const totalXP = baseXp + bonuses.sniper + bonuses.speed + bonuses.streakBonus;
+
+    state.user.xp += totalXP;
+
+    updateStreak(state.user);
+    save();
+    updateUserUI();
+
+    playSuccessSound(!!state.settings.sound);
+    fireConfetti();
+
+    restoreSuccessOverlayXpMode();
+
+    $("successTaskName").textContent = task.title;
+    $("xpBase").textContent = `+${baseXp}`;
+    $("xpSniper").textContent = bonuses.sniper ? `+${bonuses.sniper}` : "0";
+    $("xpSpeed").textContent = bonuses.speed ? `+${bonuses.speed}` : "0";
+    $("xpStreak").textContent = bonuses.streakBonus ? `+${bonuses.streakBonus}` : "0";
+    $("xpTotal").textContent = `+${totalXP} XP`;
+
+    const successOverlay = $("successOverlay");
+    if (successOverlay) {
+      successOverlay.classList.add("active");
+
+      $("btnSuccessNext").onclick = () => {
+        successOverlay.classList.remove("active");
+        if (idx < refs.length - 1) goto(`/lesson/${course.id}/${mod.id}/${idx + 1}`);
+        else goto(`/course/${course.id}`);
+      };
+
+      const btnStay = $("btnSuccessStay");
+      if (btnStay) {
+        btnStay.onclick = () => {
+          successOverlay.classList.remove("active");
           $("btnNext").classList.add("unlocked");
-        }
-        
-      } else {
-        // --- ВАРІАНТ 3: Задача вже була пройдена раніше ---
-        
-        // Дозволяємо перезаписати збережене рішення на нове (раптом учень написав краще)
-        state.user.solutions = state.user.solutions || {};
-        state.user.solutions[id] = myCodeMirror.getValue();
-        save();
-        
-        toast("✅ Уже зараховано");
-        $("btnNext").classList.add("unlocked");
+        };
       }
+    } else {
+      toast(`✅ SUCCESS! +${totalXP} XP`);
+      $("btnNext").classList.add("unlocked");
+    }
+  }
 
+  // === ЗВИЧАЙНЕ КУРСОВЕ ЗАВДАННЯ БЕЗ XP (відкривали рішення) ===
+  else {
+    setCompleted(id, "no_xp");
+
+    state.user.solutions = state.user.solutions || {};
+    state.user.solutions[id] = myCodeMirror.getValue();
+
+    updateStreak(state.user);
+    save();
+    updateUserUI();
+
+    toast("✅ Зараховано, але без XP (було відкрито рішення)");
+    $("btnNext").classList.add("unlocked");
+  }
+} else {
+  state.user.solutions = state.user.solutions || {};
+  state.user.solutions[id] = myCodeMirror.getValue();
+  save();
+
+  if (isAssignedAutoTask) {
+    let score = null;
+    try {
+      score = await finalizeActiveAutoAssignment(
+        course.id,
+        mod.id,
+        origIdx,
+        task.title || `Завдання ${origIdx + 1}`
+      );
+    } catch (e) {
+      console.error("Auto assignment sync error:", e);
+    }
+
+    if (score) {
+      showAssignedAutoSuccessOverlay(task.title, score);
+    } else {
+      toast("✅ Уже зараховано");
+    }
+  } else {
+    toast("✅ Уже зараховано");
+    $("btnNext").classList.add("unlocked");
+  }
+}
       // Перевірка, чи це була остання задача в модулі
       const mp = moduleProgress(course.id, mod.id);
       if (mp.done === mp.total) {
@@ -1602,7 +1823,11 @@ _pendingInputResolve = null;
         toast("🎉 Модуль завершено!");
       }
 
-      renderSidebarModuleTasks(course.id, mod.id, idx);
+      if (String(course.id) === "practice") {
+  renderSidebarHome();
+} else {
+  renderSidebarModuleTasks(course.id, mod.id, idx);
+}
 
       // Розблоковуємо кнопку після завершення
       btn.disabled = false;
@@ -1611,9 +1836,25 @@ _pendingInputResolve = null;
     };
 
     // breadcrumbs
-    document.querySelectorAll("[data-crumb-home]").forEach(el => el.onclick = () => goto("/home"));    document.querySelectorAll("[data-crumb-course]").forEach(el => el.onclick = () => goto(`/course/${course.id}`));
+    document.querySelectorAll("[data-crumb-home]").forEach(el => {
+  el.onclick = () => goto("/home");
+});
 
-    renderSidebarModuleTasks(course.id, mod.id, idx);
+document.querySelectorAll("[data-crumb-course]").forEach(el => {
+  el.onclick = () => {
+    if (String(course.id) === "practice") {
+      goto("/home");
+    } else {
+      goto(`/course/${course.id}`);
+    }
+  };
+});
+
+    if (String(course.id) === "practice") {
+  renderSidebarHome();
+} else {
+  renderSidebarModuleTasks(course.id, mod.id, idx);
+}
     setTerminalPromptLabel("Тест: prompt видно", true);
   }
 
