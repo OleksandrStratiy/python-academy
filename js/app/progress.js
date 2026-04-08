@@ -95,31 +95,46 @@ function addErrorLog(id, payload) {
   save();
 }
 
-    function getModuleTasks(courseId, moduleId) {
-      const course = DB.find(c => c.id === courseId);
-      const mod = course?.modules.find(m => m.id === moduleId);
-      if (!course || !mod) return [];
+function getModuleTasks(courseId, moduleId) {
+  const course = DB.find(c => c.id === courseId);
+  const mod = course?.modules.find(m => m.id === moduleId);
 
-      if (Array.isArray(mod.tasks)) return mod.tasks;
+  if (course && mod && Array.isArray(mod.tasks)) {
+    return mod.tasks;
+  }
 
-      if (Array.isArray(mod.taskRefs) && typeof TASKS === "object") {
-        return mod.taskRefs.map(id => TASKS[id]).filter(Boolean);
-      }
+  // ПІДТРИМКА ОКРЕМОЇ БАЗИ PRACTICE
+  if (String(courseId) === "practice") {
+    const practiceModule = (window.PRACTICE_DB || []).find(
+      (item) => String(item.id) === String(moduleId)
+    );
 
-      return [];
+    if (practiceModule && Array.isArray(practiceModule.tasks)) {
+      return practiceModule.tasks;
     }
+  }
 
-    function visibleTaskRefs(courseId, moduleId) {
-      const tasks = getModuleTasks(courseId, moduleId);
-      const level = (typeof getCourseLevel === "function" ? getCourseLevel(courseId) : null) || "Junior";
+  return [];
+}
 
-      return tasks
-        .map((t, origIdx) => ({ t, origIdx }))
-        .filter(({ t }) => {
-          const d = t.difficulty || "Junior";
-          return d === "all" || d === level;
-        });
-    }
+function visibleTaskRefs(courseId, moduleId) {
+  const tasks = getModuleTasks(courseId, moduleId);
+
+  // Для practice НЕ фільтруємо по рівню.
+  // Там потрібно відкривати саме ту задачу, яку призначив учитель.
+  if (String(courseId) === "practice") {
+    return tasks.map((t, origIdx) => ({ t, origIdx }));
+  }
+
+  const level = (typeof getCourseLevel === "function" ? getCourseLevel(courseId) : null) || "Junior";
+
+  return tasks
+    .map((t, origIdx) => ({ t, origIdx }))
+    .filter(({ t }) => {
+      const d = t.difficulty || "Junior";
+      return d === "all" || d === level;
+    });
+}
 
     function courseProgress(course) {
       let total = 0;
