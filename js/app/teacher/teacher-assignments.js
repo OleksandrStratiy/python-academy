@@ -668,7 +668,7 @@ window.App.teacherAssignments = (function () {
             source: "teacher",
             solutionFormat: "code", // SAFE для бази даних!
             starterCode: safeStarterCode, 
-            maxScore: taskObj.xp || 100,
+            maxScore: 12,
             isPublic: false
           });
           taskBank.push(existing); 
