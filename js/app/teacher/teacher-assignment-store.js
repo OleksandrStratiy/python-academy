@@ -61,6 +61,7 @@ function normalizeAssignmentRow(row) {
     description_snapshot: row.description_snapshot || "",
     check_mode_snapshot: row.check_mode_snapshot || "manual",
     solution_format_snapshot: row.solution_format_snapshot || "text",
+    starter_code_snapshot: row.starter_code_snapshot || "",
     max_score_snapshot: Number(row.max_score_snapshot || 12),
     note_for_student: row.note_for_student || "",
     due_at: row.due_at || null,
@@ -295,27 +296,36 @@ async function createAssignment(payload) {
     throw new Error("Спочатку вибери учня");
   }
 
-  const rawStarterCode = String(task.starter_code || "").trim();
-  const isAutoModule = rawStarterCode.startsWith("__AUTO_MODULE__|");
-  const rawFormat = String(task.solution_format || "text");
+const rawStarterCode = String(task.starter_code || "").trim();
+const rawFormat = String(task.solution_format || "text");
 
-  const row = {
-    task_bank_id: task.id,
-    teacher_id: userId,
-    target_type: targetType,
-    class_code: classCode,
-    student_id: studentId || null,
-    title_snapshot: task.title || "Без назви",
-    description_snapshot: task.description || "",
-    check_mode_snapshot: isAutoModule ? "auto" : "manual",
-    solution_format_snapshot: isAutoModule ? "auto_module" : rawFormat,
-    max_score_snapshot: Math.max(1, Number(task.max_score || 12)),
-    note_for_student: String(payload.noteForStudent || "").trim(),
-    due_at: payload.dueAt || null,
-    status: "active",
-    allow_late_submission: payload.allowLateSubmission !== false,
-    updated_at: new Date().toISOString()
-  };
+const isAutoTask = rawStarterCode.startsWith("auto|");
+const isLegacyAutoModule =
+  rawStarterCode.startsWith("__AUTO_MODULE__|") ||
+  rawFormat.startsWith("auto_module|");
+
+const isAutoAssignment = isAutoTask || isLegacyAutoModule;
+
+const row = {
+  task_bank_id: task.id,
+  teacher_id: userId,
+  target_type: targetType,
+  class_code: classCode,
+  student_id: studentId || null,
+  title_snapshot: task.title || "Без назви",
+  description_snapshot: task.description || "",
+  check_mode_snapshot: isAutoAssignment ? "auto" : "manual",
+  solution_format_snapshot: isLegacyAutoModule ? "auto_module" : rawFormat,
+  starter_code_snapshot:
+    rawStarterCode ||
+    (rawFormat.startsWith("auto_module|") ? rawFormat : ""),
+  max_score_snapshot: Math.max(1, Number(task.max_score || 12)),
+  note_for_student: String(payload.noteForStudent || "").trim(),
+  due_at: payload.dueAt || null,
+  status: "active",
+  allow_late_submission: payload.allowLateSubmission !== false,
+  updated_at: new Date().toISOString()
+};
 
   const { data, error } = await supa
     .from("assignments")
