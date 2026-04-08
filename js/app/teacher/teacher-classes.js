@@ -825,176 +825,142 @@ function renderStudentAssignmentsBlock() {
             <h4>Видані завдання</h4>
             <p class="teacher-muted">Окремі завдання для цього учня або завдання, видані всьому класу.</p>
           </div>
-
           <div class="teacher-class-item__actions">
-            <button
-              type="button"
-              id="teacherRefreshStudentAssignmentsBtn"
-              class="teacher-btn teacher-btn--ghost teacher-btn--small"
-            >
-              Оновити
-            </button>
-
-            <button
-              type="button"
-              class="teacher-btn teacher-btn--ghost teacher-btn--small"
-              data-open-assignments-student="${escapeHtml(student.id)}"
-              data-open-assignments-classcode="${escapeHtml(student.class_code || activeClassCode || "")}"
-            >
-              До вкладки завдань
-            </button>
+            <button type="button" id="teacherRefreshStudentAssignmentsBtn" class="teacher-btn teacher-btn--ghost teacher-btn--small">Оновити</button>
+            <button type="button" class="teacher-btn teacher-btn--ghost teacher-btn--small" data-open-assignments-student="${escapeHtml(student.id)}" data-open-assignments-classcode="${escapeHtml(student.class_code || activeClassCode || "")}">До вкладки завдань</button>
           </div>
         </div>
-
-        <div class="teacher-empty">
-          Для цього учня поки немає виданих завдань.
+        <div class="teacher-empty" style="padding: 40px; text-align: center; background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.1);">
+          <i class="ri-cup-line" style="font-size: 48px; color: var(--text-dim); margin-bottom: 16px; display: inline-block;"></i>
+          <div style="font-size: 16px; font-weight: 700; color: var(--text);">Для цього учня поки немає виданих завдань</div>
         </div>
       </section>
     `;
   }
 
+  const styles = `
+    <style>
+      .student-task-accordion > summary::-webkit-details-marker { display: none; } 
+      .student-task-accordion[open] > summary { background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05); } 
+      .student-task-accordion[open] .task-chevron { transform: rotate(180deg); color: var(--primary) !important; } 
+      .student-task-summary:hover { background: rgba(255,255,255,0.04); }
+    </style>
+  `;
+
   return `
+    ${styles}
     <section class="teacher-card">
       <div class="teacher-card__head">
         <div>
           <h4>Видані завдання</h4>
           <p class="teacher-muted">Тут видно, що саме видано, що вже здано і який результат перевірки.</p>
         </div>
-
         <div class="teacher-class-item__actions">
-          <button
-            type="button"
-            id="teacherRefreshStudentAssignmentsBtn"
-            class="teacher-btn teacher-btn--ghost teacher-btn--small"
-          >
-            Оновити
-          </button>
-
-          <button
-            type="button"
-            class="teacher-btn teacher-btn--ghost teacher-btn--small"
-            data-open-assignments-student="${escapeHtml(student.id)}"
-            data-open-assignments-classcode="${escapeHtml(student.class_code || activeClassCode || "")}"
-          >
-            До вкладки завдань
-          </button>
+          <button type="button" id="teacherRefreshStudentAssignmentsBtn" class="teacher-btn teacher-btn--ghost teacher-btn--small">Оновити</button>
+          <button type="button" class="teacher-btn teacher-btn--ghost teacher-btn--small" data-open-assignments-student="${escapeHtml(student.id)}" data-open-assignments-classcode="${escapeHtml(student.class_code || activeClassCode || "")}">До вкладки завдань</button>
         </div>
       </div>
 
-      <div class="teacher-assignment-list teacher-assignment-list--student">
+      <div class="teacher-student-assignments-wrapper" style="display: flex; flex-direction: column; gap: 4px;">
         ${activeStudentAssignments.map((item) => {
           const submission = getStudentSubmissionForAssignment(item.id);
+          const subStatus = submission?.status || null;
+          
+          const starterStr = String(item.starter_code_snapshot || "").trim();
+          const isAutoAssignment = starterStr.startsWith("auto|") || starterStr.startsWith("auto_module|");
+          const displayMaxScore = isAutoAssignment ? 12 : (item.max_score_snapshot || 12);
+
+          let statusColor = "var(--text-dim)"; 
+          let statusBg = "rgba(255, 255, 255, 0.05)"; 
+          let statusLabel = "Видано"; 
+          let icon = "ri-send-plane-line";
+          let isOpen = false;
+
+          if (isAutoAssignment && !subStatus) { 
+              statusColor = "var(--primary)"; statusBg = "rgba(14, 165, 233, 0.1)"; statusLabel = "Авто-задача"; icon = "ri-terminal-box-fill"; 
+          } else if (subStatus === "submitted") { 
+              statusColor = "var(--warn)"; statusBg = "rgba(251, 191, 36, 0.1)"; statusLabel = "Очікує перевірки"; icon = "ri-time-line"; isOpen = true; 
+          } else if (subStatus === "review") { 
+              statusColor = "var(--warn)"; statusBg = "rgba(251, 191, 36, 0.1)"; statusLabel = "Перевіряється"; icon = "ri-eye-line"; isOpen = true; 
+          } else if (subStatus === "reviewed") { 
+              statusColor = "var(--success)"; statusBg = "rgba(34, 197, 94, 0.1)"; statusLabel = "Оцінено"; icon = "ri-check-double-line"; 
+          } else if (subStatus === "returned") { 
+              statusColor = "var(--danger)"; statusBg = "rgba(244, 63, 94, 0.1)"; statusLabel = "Повернуто"; icon = "ri-error-warning-line"; isOpen = true;
+          } else if (item.status === "closed") { 
+              statusColor = "var(--text-dim)"; statusBg = "rgba(255, 255, 255, 0.05)"; statusLabel = "Закрито"; icon = "ri-lock-line"; 
+          }
+
+          const scoreBadge = (subStatus === "reviewed" && submission?.points != null)
+            ? `<div style="background: rgba(34,197,94,0.14); color: var(--success); padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 13px; border: 1px solid rgba(34,197,94,0.18); white-space: nowrap;">${submission.points} / ${displayMaxScore} балів</div>`
+            : "";
 
           return `
-            <article class="teacher-assignment-item">
-              <div class="teacher-assignment-item__top">
-                <div>
-                  <div class="teacher-task-item__title">
-                    ${escapeHtml(item.title_snapshot || "Без назви")}
+            <details class="student-task-accordion" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; margin-bottom: 12px; overflow: hidden; border-left: 4px solid ${statusColor}; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: background 0.2s;" ${isOpen ? "open" : ""}>
+              <summary class="student-task-summary" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; list-style: none; gap: 16px; flex-wrap: wrap;">
+                
+                <div style="display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 250px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="background: ${statusBg}; color: ${statusColor}; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px;"><i class="${icon}"></i> ${statusLabel}</span>
+                    <span style="font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 4px;"><i class="ri-pushpin-line"></i> Видано: ${formatDate(item.created_at)}</span>
+                    ${item.target_type === "class" ? `<span style="font-size: 11px; color: var(--primary); background: rgba(14,165,233,0.1); padding: 2px 6px; border-radius: 4px;"><i class="ri-group-line"></i> На весь клас</span>` : ''}
                   </div>
-
-                  <div class="teacher-task-item__meta">
-                    ${item.target_type === "student" ? "Індивідуально" : "Через увесь клас"}
-                    · Клас: <b>${escapeHtml(item.class_code || "—")}</b>
+                  <h4 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text);">${isAutoAssignment ? "🤖 " : ""}${escapeHtml(item.title_snapshot || "Без назви")}</h4>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end;">
+                  ${scoreBadge}
+                  <div style="font-size: 12px; color: var(--text); display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04);">
+                    <i class="ri-calendar-event-line" style="color: ${item.due_at ? 'var(--primary)' : 'var(--text-dim)'};"></i>
+                    Дедлайн: ${item.due_at ? formatDate(item.due_at) : "Без дедлайну"}
+                  </div>
+                  <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
+                    <i class="ri-arrow-down-s-line task-chevron" style="font-size: 20px; color: var(--text-dim); transition: transform 0.3s;"></i>
                   </div>
                 </div>
-
-                <div class="teacher-student-card__stats">
-                  ${
-                    submission
-                      ? renderStudentSubmissionStatusBadge(submission.status)
-                      : renderStudentMissingSubmissionBadge(item.status)
-                  }
-                </div>
-              </div>
-
-              <div class="teacher-assignment-item__meta-grid">
-                <div class="teacher-task-item__meta">
-                  Дедлайн: <b>${escapeHtml(formatDate(item.due_at))}</b>
-                </div>
-                <div class="teacher-task-item__meta">
-                  Видано: <b>${escapeHtml(formatDate(item.created_at))}</b>
-                </div>
-              </div>
-
-              ${
-                item.note_for_student
-                  ? `
-                    <div class="teacher-assignment-item__note">
-                      <b>Примітка вчителя:</b> ${escapeHtml(item.note_for_student)}
+              </summary>
+              
+              <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.15);">
+                
+                ${item.note_for_student ? `<div style="font-size: 14px; color: var(--text); background: rgba(139, 92, 246, 0.1); border-left: 3px solid var(--accent); padding: 12px; border-radius: 0 8px 8px 0; margin-bottom: 16px;"><b><i class="ri-message-3-line"></i> Примітка для учня:</b> ${escapeHtml(item.note_for_student)}</div>` : ""}
+                
+                ${submission ? `
+                  <div style="margin-top: 10px; padding: 16px; border: 1px solid rgba(14,165,233,0.15); border-radius: 14px; background: rgba(14,165,233,0.05); margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                      <div style="font-size: 12px; text-transform: uppercase; color: var(--primary); font-weight: 800; letter-spacing: 0.05em;"><i class="ri-user-smile-line"></i> Відповідь учня:</div>
+                      <div style="font-size: 12px; color: var(--text-dim);"><i class="ri-time-line"></i> Здано: ${formatDate(submission.submitted_at)}</div>
                     </div>
-                  `
-                  : ``
-              }
+                    ${submission.submission_text 
+                        ? `<div style="font-family: var(--mono); font-size: 14px; color: var(--text); white-space: pre-wrap; background: rgba(2,6,23,0.6); padding: 16px; border-radius: 10px; max-height: 350px; overflow-y: auto; border: 1px solid rgba(14,165,233,0.1);">${escapeHtml(submission.submission_text)}</div>`
+                        : `<div style="font-size: 14px; color: var(--text-dim); font-style: italic;">Учень не додав текстову відповідь.</div>`
+                    }
+                  </div>
+                ` : `
+                  <div style="margin-top: 20px; margin-bottom: 16px; text-align: center; padding: 16px; font-size: 14px; color: var(--text-dim); background: rgba(255,255,255,0.02); border-radius: 14px; font-weight: 600; border: 1px dashed rgba(255,255,255,0.1);"><i class="ri-hourglass-2-fill" style="font-size: 18px; vertical-align: middle; margin-right: 6px;"></i> Учень ще не надіслав відповідь.</div>
+                `}
 
-              ${
-                submission
-                  ? `
-                    <div class="teacher-assignment-item__submission">
-                      <div class="teacher-assignment-item__submission-row">
-                        <div class="teacher-assignment-item__submission-title">
-                          Здача учня
-                        </div>
-                        <div class="teacher-student-card__stats">
-                          ${renderStudentSubmissionStatusBadge(submission.status)}
-                        </div>
-                      </div>
-
-                      <div class="teacher-assignment-item__submission-meta">
-                        Здано: <b>${escapeHtml(formatDate(submission.submitted_at))}</b>
-                        ${
-                          submission.points !== null && submission.points !== undefined
-                            ? ` · Бал: <b>${escapeHtml(String(submission.points))}</b>`
-                            : ``
-                        }
-                      </div>
-
-                      ${
-                        submission.submission_text
-                          ? `
-                            <div class="teacher-assignment-item__submission-text">
-                              ${escapeHtml(submission.submission_text)}
-                            </div>
-                          `
-                          : `
-                            <div class="teacher-assignment-item__submission-text teacher-assignment-item__submission-text--empty">
-                              Учень не додав текстову відповідь.
-                            </div>
-                          `
-                      }
-
-                      ${
-                        submission.teacher_comment
-                          ? `
-                            <div class="teacher-assignment-item__teacher-comment">
-                              <b>Коментар учителя:</b><br>
-                              ${escapeHtml(submission.teacher_comment)}
-                            </div>
-                          `
-                          : ``
-                      }
+                ${submission && submission.teacher_comment ? `
+                    <div style="background: rgba(34, 197, 94, 0.05); border-left: 3px solid var(--success); padding: 12px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
+                        <div style="font-size: 12px; color: var(--success); font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Твій коментар:</div>
+                        <div style="font-size: 14px; color: var(--text);">${escapeHtml(submission.teacher_comment)}</div>
                     </div>
-                  `
-                  : `
-                    <div class="teacher-assignment-item__submission teacher-assignment-item__submission--empty">
-                      Учень ще не здав це завдання.
-                    </div>
-                  `
-              }
+                ` : ""}
 
-              <div class="teacher-class-item__actions" style="margin-top:10px;">
-                <button
-                  type="button"
-                  class="teacher-btn teacher-btn--ghost teacher-btn--small"
-                  data-open-assignment-edit="${escapeHtml(item.id)}"
-                  data-open-assignment-title="${escapeHtml(item.title_snapshot || "")}"
-                  data-open-assignment-classcode="${escapeHtml(item.class_code || student.class_code || activeClassCode || "")}"
-                  data-open-assignment-studentid="${escapeHtml(student.id)}"
-                >
-                  Редагувати
-                </button>
+                <div style="display: flex; justify-content: flex-end; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.05);">
+                    <button
+                      type="button"
+                      class="teacher-btn teacher-btn--primary teacher-btn--small"
+                      data-open-assignment-edit="${escapeHtml(item.id)}"
+                      data-open-assignment-title="${escapeHtml(item.title_snapshot || "")}"
+                      data-open-assignment-classcode="${escapeHtml(item.class_code || student.class_code || activeClassCode || "")}"
+                      data-open-assignment-studentid="${escapeHtml(student.id)}"
+                      style="display: flex; align-items: center; gap: 8px; border-radius: 8px;"
+                    >
+                      <i class="ri-external-link-line"></i> ${(subStatus === 'submitted' || subStatus === 'review') ? 'Перевірити завдання' : 'Переглянути / Редагувати'}
+                    </button>
+                </div>
+                
               </div>
-            </article>
+            </details>
           `;
         }).join("")}
       </div>
