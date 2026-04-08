@@ -129,7 +129,10 @@ window.App.uiHome = (function () {
 
       listContainer.innerHTML = todoList.map(({item, sub}) => {
         const isReturned = sub && sub.status === "returned";
-        const isAuto = (item.starter_code_snapshot || "").startsWith("auto|");
+const autoStr = String(item.starter_code_snapshot || "").trim();
+const isAuto =
+  autoStr.startsWith("auto|") ||
+  autoStr.startsWith("auto_module|");
         const title = isReturned ? "⚠️ Доопрацювати" : (isAuto ? "🤖 Інтерактивна задача" : "🆕 Нове завдання");
         const color = isReturned ? "var(--danger)" : (isAuto ? "var(--success)" : "var(--primary)");
 
@@ -259,7 +262,7 @@ window.App.uiHome = (function () {
                   student_id: state.user.id,
                   submission_text: "💻 Код успішно пройшов усі автоматичні тести системи.",
                   status: "reviewed", // Автоматом ОЦІНЕНО
-                  points: item.max_score_snapshot || 100,
+                  points: 12,
                   teacher_comment: "🤖 Автоматично перевірено та зараховано системою.",
                   submitted_at: new Date().toISOString(),
                   updated_at: new Date().toISOString()
@@ -303,20 +306,47 @@ window.App.uiHome = (function () {
           const canSubmit = item.status !== "closed";
           const subStatus = sub?.status || null;
           
-          const starterStr = item.starter_code_snapshot || "";
-          const isAutoModule = starterStr.startsWith("auto|");
-          
-          let cId = "practice", mId = "", tIdx = "0";
-          if (isAutoModule) {
-             const parts = starterStr.split("|");
-             cId = parts[1] || "practice";
-             mId = parts[2] || "";
-             tIdx = parts[3] || "0";
-          }
+const starterStr = String(item.starter_code_snapshot || "").trim();
+
+const isAutoTask = starterStr.startsWith("auto|");
+const isAutoModule = starterStr.startsWith("auto_module|");
+const isAutoAssignment = isAutoTask || isAutoModule;
+
+let cId = "practice";
+let mId = "";
+let tIdx = "0";
+
+if (isAutoTask) {
+  const parts = starterStr.split("|");
+  cId = parts[1] || "practice";
+  mId = parts[2] || "";
+  tIdx = parts[3] || "0";
+} else if (isAutoModule) {
+  const parts = starterStr.split("|");
+  cId = parts[1] || "practice";
+  mId = parts[2] || "";
+  tIdx = "0";
+}
 
           let statusColor = "var(--primary)"; let statusBg = "rgba(14, 165, 233, 0.1)"; let statusLabel = "Нове"; let icon = "ri-asterisk";
-
-          if (isAutoModule && !subStatus) { statusColor = "var(--primary)"; statusBg = "rgba(14, 165, 233, 0.1)"; statusLabel = "Авто-задача"; icon = "ri-terminal-box-fill"; }
+          const displayMaxScore = isAutoAssignment ? 12 : (item.max_score_snapshot || 12);
+          const scoreBadge = sub?.status === "reviewed" && sub?.points != null
+  ? `
+    <div style="
+      background: rgba(34,197,94,0.14);
+      color: var(--success);
+      padding: 6px 12px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 13px;
+      white-space: nowrap;
+      border: 1px solid rgba(34,197,94,0.18);
+    ">
+      ${sub.points} / ${displayMaxScore} балів
+    </div>
+  `
+  : "";
+          if (isAutoAssignment && !subStatus) { statusColor = "var(--primary)"; statusBg = "rgba(14, 165, 233, 0.1)"; statusLabel = "Авто-задача"; icon = "ri-terminal-box-fill"; }
           if (subStatus === "submitted") { statusColor = "var(--warn)"; statusBg = "rgba(251, 191, 36, 0.1)"; statusLabel = "Очікує"; icon = "ri-time-line"; }
           if (subStatus === "review") { statusColor = "var(--warn)"; statusBg = "rgba(251, 191, 36, 0.1)"; statusLabel = "Перевіряється"; icon = "ri-eye-line"; }
           if (subStatus === "reviewed") { statusColor = "var(--success)"; statusBg = "rgba(34, 197, 94, 0.1)"; statusLabel = "Оцінено"; icon = "ri-check-double-line"; }
@@ -331,12 +361,18 @@ window.App.uiHome = (function () {
                     <span style="background: ${statusBg}; color: ${statusColor}; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 4px;"><i class="${icon}"></i> ${statusLabel}</span>
                     <span style="font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 4px;"><i class="ri-pushpin-line"></i> Видано: ${escapeHtml(formatAssignmentDate(item.created_at))}</span>
                   </div>
-                  <h4 style="margin: 0; font-size: 16px; color: var(--text);">${isAutoModule ? "🤖 " : ""}${escapeHtml(item.title_snapshot || "Без назви")}</h4>
+                  <h4 style="margin: 0; font-size: 16px; color: var(--text);">${isAutoAssignment ? "🤖 " : ""}${escapeHtml(item.title_snapshot || "Без назви")}</h4>
                 </div>
-                <div style="display: flex; align-items: center; gap: 16px;">
-                  <div style="font-size: 11px; color: var(--text); display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.3); padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.02);"><i class="ri-calendar-event-line" style="color: ${item.due_at ? 'var(--primary)' : 'var(--text-dim)'};"></i> Дедлайн: ${escapeHtml(formatAssignmentDate(item.due_at))}</div>
-                  <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;"><i class="ri-arrow-down-s-line task-chevron" style="font-size: 20px; color: var(--text-dim); transition: transform 0.3s;"></i></div>
-                </div>
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end;">
+  ${scoreBadge}
+  <div style="font-size: 11px; color: var(--text); display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.3); padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.02);">
+    <i class="ri-calendar-event-line" style="color: ${item.due_at ? 'var(--primary)' : 'var(--text-dim)'};"></i>
+    Дедлайн: ${escapeHtml(formatAssignmentDate(item.due_at))}
+  </div>
+  <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
+    <i class="ri-arrow-down-s-line task-chevron" style="font-size: 20px; color: var(--text-dim); transition: transform 0.3s;"></i>
+  </div>
+</div>
               </summary>
               
               <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.15);">
@@ -344,17 +380,45 @@ window.App.uiHome = (function () {
 
                 ${item.note_for_student ? `<div style="background: rgba(0,0,0,0.2); padding: 14px; border-left: 2px solid var(--accent); border-radius: 0 10px 10px 0; font-size: 13px; color: var(--text); margin-bottom: 20px;"><b style="color: var(--accent); font-size: 11px; text-transform: uppercase; display: block; margin-bottom: 6px;">Від вчителя:</b> ${escapeHtml(item.note_for_student)}</div>` : ``}
 
-                ${isAutoModule ? `
+                ${isAutoAssignment ? `
                   <div style="margin-top: 20px;">
-                    ${subStatus === 'reviewed' ? `
-                      <div style="text-align: center; padding: 16px; font-size: 14px; color: var(--success); background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; font-weight: 600;">
-                        <i class="ri-shield-check-fill" style="font-size: 18px; vertical-align: text-bottom; margin-right: 4px;"></i> Автоперевірку успішно пройдено! Оцінка виставлена автоматично.
-                      </div>
-                    ` : `
+                  ${subStatus === 'reviewed' ? `
+  <div style="padding: 18px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;">
+      <div style="font-size: 14px; color: var(--success); font-weight: 700;">
+        <i class="ri-shield-check-fill" style="font-size: 18px; vertical-align: text-bottom; margin-right: 4px;"></i>
+        Автоперевірку успішно пройдено
+      </div>
+
+      ${sub?.points != null ? `
+        <div style="background: rgba(34,197,94,0.14); color: var(--success); padding: 6px 12px; border-radius: 10px; font-weight: 800; font-size: 14px; border: 1px solid rgba(34,197,94,0.18);">
+          Оцінка: ${sub.points} / ${displayMaxScore}
+        </div>
+      ` : ``}
+    </div>
+
+    <div style="font-size: 13px; color: var(--text-dim); line-height: 1.5;">
+      Завдання зараховане автоматично системою. Ти можеш у будь-який час повернутися сюди і переглянути свою оцінку.
+    </div>
+
+    ${sub?.teacher_comment ? `
+      <div style="margin-top: 14px; font-size: 13px; color: var(--warn); background: rgba(251,191,36,0.06); padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(251,191,36,0.16);">
+        <b style="display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase;">Коментар</b>
+        ${escapeHtml(sub.teacher_comment)}
+      </div>
+    ` : ``}
+  </div>
+` : `
                       <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 12px; border-left: 2px solid var(--primary); margin-bottom: 16px;">
                         <p style="margin: 0; font-size: 13px; color: var(--text-dim);">Це завдання виконується в інтерактивному терміналі. Натисни кнопку нижче, щоб перейти до виконання. Як тільки ти пройдеш перевірку, воно автоматично зарахується вчителю.</p>
                       </div>
-                      <button type="button" class="teacher-btn" data-open-terminal="${cId}|${mId}|${tIdx}" style="width: 100%; background: var(--primary); border-color: var(--primary); padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 700; justify-content: center; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3); color: #fff;">
+                      <button
+  type="button"
+  class="teacher-btn"
+  data-open-terminal="${cId}|${mId}|${tIdx}"
+  data-assignment-id="${escapeHtml(item.id)}" 
+  data-assignment-due="${escapeHtml(item.due_at || "")}"
+  style="width: 100%; background: var(--primary); border-color: var(--primary); padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 700; justify-content: center; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3); color: #fff;">
                         <i class="ri-play-circle-fill" style="font-size: 18px;"></i> Виконати завдання
                       </button>
                     `}
@@ -394,17 +458,32 @@ window.App.uiHome = (function () {
         mount.innerHTML = finalHTML;
 
         // ПРИВ'ЯЗКА КНОПОК "ВІДКРИТИ ТЕРМІНАЛ"
-        mount.querySelectorAll("[data-open-terminal]").forEach(btn => {
-          btn.addEventListener("click", (e) => {
-            e.preventDefault();
-            const [cId, mId, tIdx] = btn.getAttribute("data-open-terminal").split("|");
-            if (typeof goto === "function") {
-              goto(`/lesson/${cId}/${mId}/${tIdx}`);
-            } else {
-              window.location.hash = `#/lesson/${cId}/${mId}/${tIdx}`;
-            }
-          });
-        });
+mount.querySelectorAll("[data-open-terminal]").forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+
+    const [cId, mId, tIdx] = btn.getAttribute("data-open-terminal").split("|");
+    const assignmentId = btn.getAttribute("data-assignment-id") || "";
+    const dueAt = btn.getAttribute("data-assignment-due") || "";
+
+    state.activeAutoAssignment = {
+      assignmentId,
+      courseId: cId,
+      moduleId: mId,
+      taskIndex: Number(tIdx || 0),
+      dueAt,
+      openedAt: new Date().toISOString()
+    };
+
+    try {
+      window.App.storage.save(state);
+    } catch (err) {
+      console.warn("Не вдалося зберегти activeAutoAssignment", err);
+    }
+
+    window.location.hash = `#/lesson/${cId}/${mId}/${tIdx}`;
+  });
+});
 
         // ПРИВ'ЯЗКА ФОРМ ВІДПРАВЛЕННЯ (ДЛЯ РУЧНИХ ЗАВДАНЬ)
         mount.querySelectorAll("[data-student-submit-form]").forEach((form) => {
