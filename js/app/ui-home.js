@@ -9,24 +9,30 @@ window.App.uiHome = (function () {
     let currentHomeTab = "courses"; 
     let pendingAssignmentsCount = 0; 
 
-    async function fetchStudentAssignments() {
-      if (!supa || !state?.user || state.user.role !== "student") return [];
-      const { data: { user }, error: authError } = await supa.auth.getUser();
-      if (authError || !user?.id) return [];
-      const classCode = String(state.user.class_code || "").trim();
-      if (!classCode) return [];
+async function fetchStudentAssignments() {
+  if (!supa || !state?.user || state.user.role !== "student") return [];
 
-      const safeClassCode = classCode.replaceAll('"', '\\"');
+  const { data: { user }, error: authError } = await supa.auth.getUser();
+  if (authError || !user?.id) return [];
 
-      const { data, error } = await supa
-        .from("assignments")
-        .select("*")
-        .or(`and(target_type.eq.class,class_code.eq."${safeClassCode}"),and(target_type.eq.student,student_id.eq."${user.id}")`)
-        .order("created_at", { ascending: false });
+  const classCode = String(state.user.class_code || "").trim();
+  if (!classCode) return [];
 
-      if (error) throw error;
-      return data || [];
-    }
+  const safeClassCode = classCode.replaceAll('"', '\\"');
+
+  const { data, error } = await supa
+    .from("assignments")
+    .select("*")
+    .or(`and(target_type.eq.class,class_code.eq."${safeClassCode}"),and(target_type.eq.student,student_id.eq."${user.id}")`)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).filter((item) => {
+    const hidden = Array.isArray(item.hidden_for_students) ? item.hidden_for_students : [];
+    return !hidden.includes(String(user.id));
+  });
+}
 
     async function fetchStudentSubmissions() {
       if (!supa || !state?.user || state.user.role !== "student") return [];
@@ -450,8 +456,7 @@ if (isAutoTask) {
         };
 
         let finalHTML = `<style>.student-task-accordion > summary::-webkit-details-marker { display: none; } .student-task-accordion[open] > summary { background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05); } .student-task-accordion[open] .task-chevron { transform: rotate(180deg); color: var(--primary) !important; } .student-task-summary:hover { background: rgba(255,255,255,0.03); } details.history-accordion > summary::-webkit-details-marker { display: none; } details.history-accordion[open] > summary i.ri-arrow-down-s-line { transform: rotate(180deg); }</style>`;
-
-        if (todoList.length > 0) finalHTML += `<div style="margin-bottom: 30px;"><h3 style="margin: 0 0 16px 0; font-size: 16px; color: var(--text); display: flex; align-items: center; gap: 8px;"><i class="ri-fire-fill" style="color: var(--danger);"></i> Потребують виконання</h3><div style="display: flex; flex-direction: column;">${todoList.map(obj => renderCompactCard(obj, true)).join("")}</div></div>`;
+if (todoList.length > 0) finalHTML += `<div style="margin-bottom: 30px;"><h3 style="margin: 0 0 16px 0; font-size: 16px; color: var(--text); display: flex; align-items: center; gap: 8px;"><i class="ri-fire-fill" style="color: var(--danger);"></i> Потребують виконання</h3><div style="display: flex; flex-direction: column;">${todoList.map(obj => renderCompactCard(obj, false)).join("")}</div></div>`;
         if (reviewList.length > 0) finalHTML += `<div style="margin-bottom: 30px;"><h3 style="margin: 0 0 16px 0; font-size: 16px; color: var(--text); display: flex; align-items: center; gap: 8px;"><i class="ri-time-fill" style="color: var(--warn);"></i> Знаходяться на перевірці</h3><div style="display: flex; flex-direction: column; opacity: 0.85;">${reviewList.map(obj => renderCompactCard(obj, false)).join("")}</div></div>`;
         if (doneList.length > 0) finalHTML += `<details class="history-accordion" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; overflow: hidden; margin-bottom: 30px;"><summary style="padding: 16px 20px; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; font-weight: 700; color: var(--text-dim); background: rgba(255,255,255,0.02);"><div style="display: flex; align-items: center; gap: 10px;"><i class="ri-archive-fill"></i> Історія виконаних завдань (${doneList.length})</div><i class="ri-arrow-down-s-line" style="font-size: 20px; transition: transform 0.3s;"></i></summary><div style="padding: 20px; display: flex; flex-direction: column; border-top: 1px solid rgba(255,255,255,0.05);">${doneList.map(obj => renderCompactCard(obj, false)).join("")}</div></details>`;
 
