@@ -19,26 +19,36 @@ window.App.teacherAssignments = (function () {
     // ==================================================
     // 1. СТАН UI
     // ==================================================
-    function ensureUiState() {
-      state.teacherAssignmentsUI = state.teacherAssignmentsUI || {
-        mainTab: "bank", 
-        bankCategory: "mine", 
-        isCreatingTask: false,
-        selectedTaskId: "",
-        selectedAutoModuleId: "",
-        issueClassCode: "",
-        issueTargetType: "class",
-        issueStudentId: "",
-        issuedSearch: "",
-        issuedClassFilter: "all",
-        issuedStatusFilter: "all"
-      };
+function ensureUiState() {
+  state.teacherAssignmentsUI = state.teacherAssignmentsUI || {
+    mainTab: "bank",
+    bankCategory: "mine",
+    isCreatingTask: false,
+    selectedTaskId: "",
+    selectedAutoModuleId: "",
+    issueClassCode: "",
+    issueTargetType: "class",
+    issueStudentId: "",
+    issuedSearch: "",
+    issuedClassFilter: "all",
+    issuedStatusFilter: "all"
+  };
 
-      if (!("mainTab" in state.teacherAssignmentsUI)) state.teacherAssignmentsUI.mainTab = "bank";
-      if (!("bankCategory" in state.teacherAssignmentsUI)) state.teacherAssignmentsUI.bankCategory = "mine";
-      
-      return state.teacherAssignmentsUI;
-    }
+  // міграція зі старого стану
+  if (state.teacherAssignmentsUI.mainTab === "grading") {
+    state.teacherAssignmentsUI.mainTab = "review";
+  }
+
+  if (!["bank", "issue", "review"].includes(state.teacherAssignmentsUI.mainTab)) {
+    state.teacherAssignmentsUI.mainTab = "bank";
+  }
+
+  if (!("bankCategory" in state.teacherAssignmentsUI)) {
+    state.teacherAssignmentsUI.bankCategory = "mine";
+  }
+
+  return state.teacherAssignmentsUI;
+}
 
     function escapeHtml(str) {
       return String(str || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
@@ -204,7 +214,7 @@ window.App.teacherAssignments = (function () {
           
           <div style="margin-top: 20px; padding: 12px; background: rgba(14, 165, 233, 0.05); border: 1px solid rgba(14, 165, 233, 0.2); border-radius: 8px; font-size: 13px; color: var(--primary); display: flex; gap: 10px; align-items: center;">
             <i class="ri-information-line" style="font-size: 18px;"></i>
-            <span>Щоб призначити це завдання учням, перейди у вкладку <b>Видача та Перевірка</b>.</span>
+            <span>Щоб призначити це завдання учням, перейди у вкладку <b>Видача</b>.</span>
           </div>
         </section>
       `;
@@ -337,206 +347,274 @@ window.App.teacherAssignments = (function () {
     // ==================================================
     // 5. Вкладка 2: ВИДАЧА ТА ПЕРЕВІРКА (Grading)
     // ==================================================
-    function renderGradingTab() {
-      const ui = ensureUiState();
-      
-      return `
-        <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
-          
-          <div style="flex: 1 1 350px; display: flex; flex-direction: column; gap: 16px;">
-            <section class="teacher-card" style="border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.02);">
-              <div class="teacher-card__head" style="margin-bottom: 16px;">
-                <div>
-                  <h4 style="margin: 0; color: var(--accent);"><i class="ri-send-plane-fill"></i> Видати завдання</h4>
-                  <p class="teacher-muted" style="margin-top: 4px; font-size: 12px;">Вибери ручне завдання або окрему задачу з Практикуму</p>
-                </div>
-              </div>
-              <form id="teacherIssueForm" style="display: flex; flex-direction: column; gap: 14px;">
-                
-                <div>
-                  <label class="teacher-muted" style="font-size: 11px; text-transform: uppercase; margin-bottom: 4px; display: block;">Завдання для видачі</label>
-                  <select id="assignmentTaskId" class="teacher-input" name="taskId" style="margin: 0;">
-                    <optgroup label="📝 Мої ручні завдання">
-                      ${getFilteredTaskBank().length ? getFilteredTaskBank().map(t => `<option value="${escapeHtml(t.id)}" ${ui.selectedTaskId === t.id ? "selected" : ""}>${escapeHtml(t.title)}</option>`).join("") : `<option disabled>Немає ручних завдань</option>`}
-                    </optgroup>
-                    ${getAutoModules().length ? getAutoModules().map(m => `
-                      <optgroup label="🤖 Практикум: ${escapeHtml(m.title)}">
-                        ${(m.tasks || []).map((t, i) => `
-                          <option value="auto|${escapeHtml(m.courseId)}|${escapeHtml(m.id)}|${i}" ${ui.selectedTaskId === `auto|${m.courseId}|${m.id}|${i}` ? "selected" : ""}>
-                            ${i + 1}. ${escapeHtml(t.title)} (${t.xp || 0} XP)
-                          </option>
-                        `).join("")}
-                      </optgroup>
-                    `).join("") : `<optgroup label="🤖 Авто-Практикуми"><option disabled>Немає практикумів</option></optgroup>`}
-                  </select>
-                </div>
+function renderIssueTab() {
+  const ui = ensureUiState();
 
-                <div>
-                  <label class="teacher-muted" style="font-size: 11px; text-transform: uppercase; margin-bottom: 4px; display: block;">Кому видаємо</label>
-                  <select id="assignmentTargetType" class="teacher-input" name="targetType" style="margin: 0;">
-                    <option value="class">Усьому класу</option>
-                    <option value="student">Окремому учню</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="teacher-muted" style="font-size: 11px; text-transform: uppercase; margin-bottom: 4px; display: block;">Клас</label>
-                  <select id="assignmentClassCode" class="teacher-input" name="classCode" style="margin: 0;">
-                    ${teacherClasses.map((cls) => `<option value="${escapeHtml(cls.code)}">${escapeHtml(cls.name || cls.code)} (${escapeHtml(cls.code)})</option>`).join("")}
-                  </select>
-                </div>
-
-                ${ui.issueTargetType === "student" ? `
-                  <div>
-                    <label class="teacher-muted" style="font-size: 11px; text-transform: uppercase; margin-bottom: 4px; display: block;">Учень</label>
-                    <select id="assignmentStudentId" class="teacher-input" name="studentId" style="margin: 0;">
-                      ${classStudents.length ? classStudents.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.full_name || "Без імені")}</option>`).join("") : `<option value="">Немає учнів</option>`}
-                    </select>
-                  </div>
-                ` : ""}
-
-                <div>
-                  <label class="teacher-muted" style="font-size: 11px; text-transform: uppercase; margin-bottom: 4px; display: block;">Дедлайн</label>
-                  <input class="teacher-input" name="dueAt" type="datetime-local" style="margin: 0;">
-                </div>
-
-                <div>
-                  <label class="teacher-muted" style="font-size: 11px; text-transform: uppercase; margin-bottom: 4px; display: block;">Примітка (необов'язково)</label>
-                  <input class="teacher-input" name="noteForStudent" placeholder="Наприклад: Пройдіть усі рівні Junior" style="margin: 0;">
-                </div>
-
-                <button class="teacher-btn teacher-btn--primary" type="submit" style="margin-top: 8px; background: var(--accent); border-color: var(--accent);">
-                  <i class="ri-send-plane-fill"></i> Призначити
-                </button>
-              </form>
-            </section>
+  return `
+    <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
+      <div style="flex: 1 1 720px; max-width: 860px;">
+        <section class="teacher-card" style="border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.02);">
+          <div class="teacher-card__head" style="margin-bottom: 16px;">
+            <div>
+              <h4 style="margin: 0; color: var(--accent);"><i class="ri-send-plane-fill"></i> Видати ручне завдання</h4>
+              <p class="teacher-muted" style="margin-top: 4px; font-size: 12px;">Обери завдання з Бази та признач дедлайн</p>
+            </div>
           </div>
 
-          <div style="flex: 2 1 600px;">
-            <section class="teacher-card" style="width: 100%;">
-              <div class="teacher-card__head" style="margin-bottom: 16px;">
-                <div>
-                  <h4 style="margin: 0;"><i class="ri-check-double-line"></i> Журнал перевірки</h4>
-                  <p class="teacher-muted" style="margin-top: 4px;">Усі видані завдання та здані роботи</p>
-                </div>
-              </div>
-              
-              <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; background: rgba(30,41,59,0.4); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                <div style="flex: 1; min-width: 200px; position: relative;">
-                  <i class="ri-search-line" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-dim);"></i>
-                  <input id="teacherIssuedSearch" class="teacher-input" type="search" placeholder="Пошук завдань..." value="${escapeHtml(ui.issuedSearch || "")}" style="margin: 0; padding-left: 36px; width: 100%;">
-                </div>
-                <select id="teacherIssuedClassFilter" class="teacher-input" style="margin: 0; width: 160px; font-size: 13px;">
-                  <option value="all">Усі класи</option>
-                  ${teacherClasses.map((cls) => `<option value="${escapeHtml(cls.code)}" ${String(ui.issuedClassFilter || "all") === String(cls.code) ? "selected" : ""}>${escapeHtml(cls.name || cls.code)}</option>`).join("")}
+          <form id="teacherIssueForm" style="display: flex; flex-direction: column; gap: 14px;">
+            <div>
+              <label class="teacher-muted" style="font-size: 11px; text-transform: uppercase; margin-bottom: 4px; display: block;">Завдання з бази</label>
+              <select id="assignmentTaskId" class="teacher-input" name="taskId" style="margin: 0;">
+                ${getFilteredTaskBank().length
+                  ? getFilteredTaskBank().map(t => `<option value="${escapeHtml(t.id)}" ${ui.selectedTaskId === t.id ? "selected" : ""}>${escapeHtml(t.title)}</option>`).join("")
+                  : `<option value="">Спочатку створи завдання</option>`
+                }
+              </select>
+            </div>
+
+            <div>
+              <label class="teacher-muted" style="font-size: 11px; text-transform: uppercase; margin-bottom: 4px; display: block;">Кому видаємо</label>
+              <select id="assignmentTargetType" class="teacher-input" name="targetType" style="margin: 0;">
+                <option value="class" ${ui.issueTargetType === "class" ? "selected" : ""}>Усьому класу</option>
+                <option value="student" ${ui.issueTargetType === "student" ? "selected" : ""}>Окремому учню</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="teacher-muted" style="font-size: 11px; text-transform: uppercase; margin-bottom: 4px; display: block;">Клас</label>
+              <select id="assignmentClassCode" class="teacher-input" name="classCode" style="margin: 0;">
+                ${teacherClasses.map((cls) => `<option value="${escapeHtml(cls.code)}" ${String(ui.issueClassCode || "") === String(cls.code) ? "selected" : ""}>${escapeHtml(cls.name || cls.code)} (${escapeHtml(cls.code)})</option>`).join("")}
+              </select>
+            </div>
+
+            ${ui.issueTargetType === "student" ? `
+              <div>
+                <label class="teacher-muted" style="font-size: 11px; text-transform: uppercase; margin-bottom: 4px; display: block;">Учень</label>
+                <select id="assignmentStudentId" class="teacher-input" name="studentId" style="margin: 0;">
+                  ${classStudents.length
+                    ? classStudents.map(s => `<option value="${escapeHtml(s.id)}" ${String(ui.issueStudentId || "") === String(s.id) ? "selected" : ""}>${escapeHtml(s.full_name || "Без імені")}</option>`).join("")
+                    : `<option value="">Немає учнів</option>`
+                  }
                 </select>
-                <select id="teacherIssuedStatusFilter" class="teacher-input" style="margin: 0; width: 160px; font-size: 13px;">
-                  <option value="all" ${String(ui.issuedStatusFilter || "all") === "all" ? "selected" : ""}>Усі статуси</option>
-                  <option value="submitted" ${String(ui.issuedStatusFilter || "all") === "submitted" ? "selected" : ""}>Є нові здачі</option>
-                  <option value="active" ${String(ui.issuedStatusFilter || "all") === "active" ? "selected" : ""}>Активне</option>
-                  <option value="closed" ${String(ui.issuedStatusFilter || "all") === "closed" ? "selected" : ""}>Закрито</option>
-                </select>
               </div>
+            ` : ""}
 
-              ${getFilteredAssignments().length === 0 ? `<div class="teacher-empty" style="padding: 40px 20px;">За вашими фільтрами нічого не знайдено.</div>` : `
-                <div style="display: flex; flex-direction: column; gap: 16px;">
-                  ${getFilteredAssignments().map((item) => {
-                    const subs = getSubmissionsForAssignment(item.id);
-                    const unreviewedCount = subs.filter(s => s.status === 'submitted' || s.status === 'review').length;
-                    const hasUnreviewed = unreviewedCount > 0;
-                    const isAutoModule = (item.starter_code_snapshot || "").startsWith("auto|"); // ЗМІНЕНО
+            <div>
+              <label class="teacher-muted" style="font-size: 11px; text-transform: uppercase; margin-bottom: 4px; display: block;">Дедлайн</label>
+              <input class="teacher-input" name="dueAt" type="datetime-local" style="margin: 0;">
+            </div>
 
-                    return `
-                    <details class="premium-access-details" style="background: rgba(30,41,59,0.3); border: 1px solid ${hasUnreviewed ? 'rgba(14, 165, 233, 0.4)' : 'rgba(255,255,255,0.05)'}; border-radius: 12px; overflow: hidden; transition: all 0.2s;" ${hasUnreviewed ? 'open' : ''}>
-                      <summary style="padding: 16px; display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer; list-style: none; gap: 16px; background: ${hasUnreviewed ? 'rgba(14, 165, 233, 0.05)' : 'transparent'};">
-                        <div style="flex: 1;">
-                          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-                            <h4 style="margin: 0; font-size: 16px; color: var(--text);">${isAutoModule ? "🤖 " : ""}${escapeHtml(item.title_snapshot || "Без назви")}</h4>
-                            ${renderAssignmentStatusBadge(item.status)}
-                          </div>
-                          <div style="font-size: 12px; color: var(--text-dim); display: flex; gap: 16px; flex-wrap: wrap;">
-                            <span><i class="ri-group-line"></i> Клас: <b style="color: var(--text);">${escapeHtml(item.class_code || "—")}</b></span>
-                            <span><i class="ri-user-line"></i> ${item.target_type === "student" ? "Індивідуально" : "Усьому класу"}</span>
-                            <span><i class="ri-calendar-event-line"></i> Дедлайн: <b style="color: var(--text);">${escapeHtml(formatDate(item.due_at))}</b></span>
-                          </div>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 16px;">
-                          ${hasUnreviewed ? `<div style="background: var(--primary); color: #fff; font-size: 11px; font-weight: bold; padding: 4px 8px; border-radius: 12px; display: flex; align-items: center; gap: 4px;"><i class="ri-mail-unread-line"></i> ${unreviewedCount} нових</div>` : ``}
-                          <div style="font-size: 12px; color: var(--text-dim); background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 8px;">Всього здач: ${subs.length}</div>
-                          <i class="ri-arrow-down-s-line chevron" style="font-size: 20px; color: var(--text-dim);"></i>
-                        </div>
-                      </summary>
+            <div>
+              <label class="teacher-muted" style="font-size: 11px; text-transform: uppercase; margin-bottom: 4px; display: block;">Примітка (необов'язково)</label>
+              <input class="teacher-input" name="noteForStudent" placeholder="Наприклад: Зверніть увагу на змінні" style="margin: 0;">
+            </div>
 
-                      <div style="padding: 0 16px 16px 16px; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.15);">
-                        <div style="display: flex; justify-content: flex-end; padding-top: 12px; gap: 10px;">
-                           <button type="button" class="teacher-btn teacher-btn--ghost teacher-btn--small teacher-btn--danger" data-delete-assignment="${escapeHtml(item.id)}">
-                            <i class="ri-delete-bin-line"></i> Видалити
-                          </button>
+            <button class="teacher-btn teacher-btn--primary" type="submit" style="margin-top: 8px; background: var(--accent); border-color: var(--accent);">
+              <i class="ri-send-plane-fill"></i> Призначити
+            </button>
+          </form>
+        </section>
+      </div>
+    </div>
+  `;
+}
+
+function renderReviewTab() {
+  const ui = ensureUiState();
+
+  return `
+    <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
+      <div style="flex: 1 1 100%;">
+        <section class="teacher-card" style="width: 100%;">
+          <div class="teacher-card__head" style="margin-bottom: 16px;">
+            <div>
+              <h4 style="margin: 0;"><i class="ri-check-double-line"></i> Журнал перевірки</h4>
+              <p class="teacher-muted" style="margin-top: 4px;">Усі видані завдання та здані роботи</p>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; background: rgba(30,41,59,0.4); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="flex: 1; min-width: 200px; position: relative;">
+              <i class="ri-search-line" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-dim);"></i>
+              <input
+                id="teacherIssuedSearch"
+                class="teacher-input"
+                type="search"
+                placeholder="Пошук завдань..."
+                value="${escapeHtml(ui.issuedSearch || "")}"
+                style="margin: 0; padding-left: 36px; width: 100%;"
+              >
+            </div>
+
+            <select id="teacherIssuedClassFilter" class="teacher-input" style="margin: 0; width: 160px; font-size: 13px;">
+              <option value="all">Усі класи</option>
+              ${teacherClasses.map((cls) => `<option value="${escapeHtml(cls.code)}" ${String(ui.issuedClassFilter || "all") === String(cls.code) ? "selected" : ""}>${escapeHtml(cls.name || cls.code)}</option>`).join("")}
+            </select>
+
+            <select id="teacherIssuedStatusFilter" class="teacher-input" style="margin: 0; width: 160px; font-size: 13px;">
+              <option value="all" ${String(ui.issuedStatusFilter || "all") === "all" ? "selected" : ""}>Усі статуси</option>
+              <option value="submitted" ${String(ui.issuedStatusFilter || "all") === "submitted" ? "selected" : ""}>Є нові здачі</option>
+              <option value="active" ${String(ui.issuedStatusFilter || "all") === "active" ? "selected" : ""}>Активне</option>
+              <option value="closed" ${String(ui.issuedStatusFilter || "all") === "closed" ? "selected" : ""}>Закрито</option>
+            </select>
+          </div>
+
+          ${getFilteredAssignments().length === 0 ? `
+            <div class="teacher-empty" style="padding: 40px 20px;">За вашими фільтрами нічого не знайдено.</div>
+          ` : `
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              ${getFilteredAssignments().map((item) => {
+                const subs = getSubmissionsForAssignment(item.id);
+                const unreviewedCount = subs.filter(s => s.status === "submitted" || s.status === "review").length;
+                const hasUnreviewed = unreviewedCount > 0;
+
+                return `
+                  <details class="premium-access-details" style="background: rgba(30,41,59,0.3); border: 1px solid ${hasUnreviewed ? "rgba(14, 165, 233, 0.4)" : "rgba(255,255,255,0.05)"}; border-radius: 12px; overflow: hidden; transition: all 0.2s;">
+                    <summary style="padding: 16px; display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer; list-style: none; gap: 16px; background: ${hasUnreviewed ? "rgba(14, 165, 233, 0.05)" : "transparent"};">
+                      <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                          <h4 style="margin: 0; font-size: 16px; color: var(--text);">${escapeHtml(item.title_snapshot || "Без назви")}</h4>
+                          ${renderAssignmentStatusBadge(item.status)}
                         </div>
-                        <div style="margin-top: 8px;">
-                          <h5 style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px 0;">Роботи учнів</h5>
-                          ${renderAssignmentSubmissions(item.id)}
+
+                        <div style="font-size: 12px; color: var(--text-dim); display: flex; gap: 16px; flex-wrap: wrap;">
+                          <span><i class="ri-group-line"></i> Клас: <b style="color: var(--text);">${escapeHtml(item.class_code || "—")}</b></span>
+                          <span><i class="ri-user-line"></i> ${item.target_type === "student" ? "Індивідуально" : "Усьому класу"}</span>
+                          <span><i class="ri-pushpin-line"></i> Видано: <b style="color: var(--text);">${escapeHtml(formatDate(item.created_at))}</b></span>
+                          <span><i class="ri-calendar-event-line"></i> Дедлайн: <b style="color: var(--text);">${escapeHtml(formatDate(item.due_at))}</b></span>
                         </div>
                       </div>
-                    </details>
-                  `}).join("")}
+
+                      <div style="display: flex; align-items: center; gap: 16px;">
+                        ${hasUnreviewed ? `<div style="background: var(--primary); color: #fff; font-size: 11px; font-weight: bold; padding: 4px 8px; border-radius: 12px; display: flex; align-items: center; gap: 4px;"><i class="ri-mail-unread-line"></i> ${unreviewedCount} нових</div>` : ``}
+                        <div style="font-size: 12px; color: var(--text-dim); background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 8px;">Всього здач: ${subs.length}</div>
+                        <i class="ri-arrow-down-s-line chevron" style="font-size: 20px; color: var(--text-dim);"></i>
+                      </div>
+                    </summary>
+
+                    <div style="padding: 0 16px 16px 16px; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.15);">
+                      <div style="display: flex; justify-content: flex-end; padding-top: 12px; gap: 10px;">
+                        <button
+                          type="button"
+                          class="teacher-btn teacher-btn--ghost teacher-btn--small teacher-btn--danger"
+                          data-delete-assignment="${escapeHtml(item.id)}"
+                        >
+                          <i class="ri-delete-bin-line"></i> Видалити
+                        </button>
+                      </div>
+
+                      <div style="margin-top: 8px;">
+                        <h5 style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px 0;">Роботи учнів</h5>
+                        ${renderAssignmentSubmissions(item)}
+                      </div>
+                    </div>
+                  </details>
+                `;
+              }).join("")}
+            </div>
+          `}
+        </section>
+      </div>
+    </div>
+  `;
+}
+
+function renderAssignmentSubmissions(item) {
+  const rows = getSubmissionsForAssignment(item.id);
+
+  if (!rows.length) {
+    return `<div class="teacher-empty" style="padding: 16px; background: rgba(255,255,255,0.02); border-radius: 8px;">Ще ніхто не здав це завдання.</div>`;
+  }
+
+  return `
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
+      ${rows.map((submission) => `
+        <details class="teacher-assignment-edit" style="border-radius: 14px;">
+          <summary class="teacher-assignment-edit__summary" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 34px; height: 34px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: #fff;">
+                ${(submission.student_name || "У")[0].toUpperCase()}
+              </div>
+              <div>
+                <div style="font-weight: 700; font-size: 14px; color: var(--text);">${escapeHtml(submission.student_name || "Учень")}</div>
+                <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">
+                  <i class="ri-time-line"></i> Здано: ${escapeHtml(formatDate(submission.submitted_at))}
                 </div>
-              `}
-            </section>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              ${renderSubmissionStatusBadge(submission.status)}
+              ${submission.points != null ? `<span class="teacher-pill teacher-pill--success">${submission.points} б.</span>` : ""}
+              <i class="ri-arrow-down-s-line" style="font-size: 20px; color: var(--text-dim);"></i>
+            </div>
+          </summary>
+
+          <div style="padding: 0 16px 16px;">
+            <details open style="margin-top: 14px; border: 1px solid rgba(14,165,233,0.10); border-radius: 10px; overflow: hidden; background: rgba(14,165,233,0.02);">
+              <summary style="list-style: none; cursor: pointer; padding: 12px 14px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary); display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="ri-file-text-line"></i> Відповідь учня</span>
+                <i class="ri-arrow-down-s-line" style="font-size: 18px; color: var(--text-dim);"></i>
+              </summary>
+
+              <div style="padding: 14px; border-top: 1px solid rgba(255,255,255,0.05);">
+                ${submission.submission_text
+                  ? `<div style="padding: 12px; border: 1px solid rgba(14, 165, 233, 0.1); border-radius: 8px; background: rgba(2,6,23,0.55); font-family: var(--mono); font-size: 13px; color: var(--text); white-space: pre-wrap; max-height: 280px; overflow-y: auto;">${escapeHtml(submission.submission_text)}</div>`
+                  : `<div style="font-size: 13px; color: var(--text-dim); font-style: italic;">Учень нічого не написав у текстове поле.</div>`
+                }
+              </div>
+            </details>
+
+            <form data-review-submission-form="${escapeHtml(submission.id)}" style="display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; margin-top: 12px;">
+              <div style="flex: 1; min-width: 250px;">
+                <textarea name="teacherComment" rows="2" class="teacher-input" placeholder="Напиши коментар або фідбек учню..." style="margin: 0; min-height: 42px;">${escapeHtml(submission.teacher_comment || "")}</textarea>
+              </div>
+
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <input
+                  type="number"
+                  name="points"
+                  min="0"
+                  max="100"
+                  step="1"
+                  class="teacher-input"
+                  placeholder="Бал"
+                  value="${submission.points ?? ""}"
+                  style="width: 80px; margin: 0; text-align: center; font-weight: 700;"
+                />
+
+                <select name="status" class="teacher-input" style="width: 150px; margin: 0; padding: 8px 12px; font-size: 13px;">
+                  <option value="submitted" ${submission.status === "submitted" ? "selected" : ""}>Здано</option>
+                  <option value="review" ${submission.status === "review" ? "selected" : ""}>На перевірці</option>
+                  <option value="returned" ${submission.status === "returned" ? "selected" : ""}>Доопрацювати</option>
+                  <option value="reviewed" ${submission.status === "reviewed" ? "selected" : ""}>✅ Оцінено</option>
+                </select>
+
+                <button type="submit" class="teacher-btn teacher-btn--primary" style="margin: 0; padding: 8px 16px;">
+                  Зберегти
+                </button>
+              </div>
+            </form>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
+              <button
+                type="button"
+                class="teacher-btn teacher-btn--ghost teacher-btn--small teacher-btn--danger"
+                data-remove-assignment-student="${escapeHtml(item.id)}"
+                data-remove-student-id="${escapeHtml(submission.student_id || "")}"
+                data-remove-student-name="${escapeHtml(submission.student_name || "учня")}"
+                data-remove-assignment-title="${escapeHtml(item.title_snapshot || "завдання")}"
+              >
+                <i class="ri-user-unfollow-line"></i>
+                ${item.target_type === "class" ? "Прибрати для цього учня" : "Видалити індивідуальне"}
+              </button>
+            </div>
           </div>
-
-        </div>
-      `;
-    }
-
-    function renderAssignmentSubmissions(assignmentId) {
-      const rows = getSubmissionsForAssignment(assignmentId);
-      if (!rows.length) return `<div class="teacher-empty" style="padding: 16px; background: rgba(255,255,255,0.02); border-radius: 8px;">Ще ніхто не здав це завдання.</div>`;
-
-      return `
-        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;">
-          ${rows.map((submission) => `
-            <article style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden; transition: border-color 0.2s;">
-              <div style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02);">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                  <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: #fff;">
-                    ${(submission.student_name || "У")[0].toUpperCase()}
-                  </div>
-                  <div>
-                    <div style="font-weight: 700; font-size: 14px; color: var(--text);">${escapeHtml(submission.student_name || "Учень")}</div>
-                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;"><i class="ri-time-line"></i> Здано: ${escapeHtml(formatDate(submission.submitted_at))}</div>
-                  </div>
-                </div>
-                <div>${renderSubmissionStatusBadge(submission.status)}</div>
-              </div>
-
-              <div style="padding: 16px;">
-                <div style="margin-bottom: 16px;">
-                  <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 6px; font-weight: 700;">Відповідь учня</div>
-                  <div style="padding: 12px; border: 1px solid rgba(14, 165, 233, 0.1); border-radius: 8px; background: rgba(14, 165, 233, 0.02); font-family: var(--mono); font-size: 13px; color: var(--text); white-space: pre-wrap; max-height: 300px; overflow-y: auto;">${escapeHtml(submission.submission_text || "Учень нічого не написав в текстове поле.")}</div>
-                </div>
-
-                <form data-review-submission-form="${escapeHtml(submission.id)}" style="display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px;">
-                  <div style="flex: 1; min-width: 250px;">
-                    <textarea name="teacherComment" rows="2" class="teacher-input" placeholder="Напиши коментар або фідбек учню..." style="margin: 0; height: 100%; min-height: 42px;">${escapeHtml(submission.teacher_comment || "")}</textarea>
-                  </div>
-                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                    <input type="number" name="points" min="0" max="100" step="1" class="teacher-input" placeholder="Бал" value="${submission.points ?? ""}" style="width: 70px; margin: 0; text-align: center; font-weight: bold;"/>
-                    <select name="status" class="teacher-input" style="width: 140px; margin: 0; padding: 8px 12px; font-size: 13px;">
-                      <option value="submitted" ${submission.status === "submitted" ? "selected" : ""}>Здано</option>
-                      <option value="review" ${submission.status === "review" ? "selected" : ""}>На перевірці</option>
-                      <option value="returned" ${submission.status === "returned" ? "selected" : ""}>Доопрацювати</option>
-                      <option value="reviewed" ${submission.status === "reviewed" ? "selected" : ""}>✅ Оцінено</option>
-                    </select>
-                    <button type="submit" class="teacher-btn teacher-btn--primary" style="margin: 0; padding: 8px 16px;">Зберегти</button>
-                  </div>
-                </form>
-              </div>
-            </article>
-          `).join("")}
-        </div>
-      `;
-    }
+        </details>
+      `).join("")}
+    </div>
+  `;
+}
 
     function renderView() {
       const root = $("teacherInnerView");
@@ -546,20 +624,43 @@ window.App.teacherAssignments = (function () {
 
       root.innerHTML = `
         <div class="teacher-shell">
-          <div style="display: flex; gap: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px; padding-bottom: 16px;">
-            <button class="teacher-btn ${ui.mainTab === 'bank' ? 'teacher-btn--primary' : 'teacher-btn--ghost'}" data-main-tab="bank" style="font-size: 15px; padding: 10px 20px;">
-              <i class="ri-database-2-line"></i> База завдань
-            </button>
-            <button class="teacher-btn ${ui.mainTab === 'grading' ? 'teacher-btn--primary' : 'teacher-btn--ghost'}" data-main-tab="grading" style="font-size: 15px; padding: 10px 20px; background: ${ui.mainTab === 'grading' ? 'var(--accent)' : 'transparent'}; border-color: ${ui.mainTab === 'grading' ? 'var(--accent)' : 'var(--border)'};">
-              <i class="ri-check-double-line"></i> Видача та Перевірка
-            </button>
-          </div>
+<div style="display: flex; gap: 16px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px; padding-bottom: 16px; flex-wrap: wrap;">
+  <button
+    class="teacher-btn ${ui.mainTab === 'bank' ? 'teacher-btn--primary' : 'teacher-btn--ghost'}"
+    data-main-tab="bank"
+    style="font-size: 15px; padding: 10px 20px;"
+  >
+    <i class="ri-database-2-line"></i> База завдань
+  </button>
 
-          ${ui.mainTab === 'bank' ? renderTaskBankTab() : renderGradingTab()}
+  <button
+    class="teacher-btn ${ui.mainTab === 'issue' ? 'teacher-btn--primary' : 'teacher-btn--ghost'}"
+    data-main-tab="issue"
+    style="font-size: 15px; padding: 10px 20px; background: ${ui.mainTab === 'issue' ? 'var(--accent)' : 'transparent'}; border-color: ${ui.mainTab === 'issue' ? 'var(--accent)' : 'var(--border)'};"
+  >
+    <i class="ri-send-plane-fill"></i> Видача
+  </button>
+
+  <button
+    class="teacher-btn ${ui.mainTab === 'review' ? 'teacher-btn--primary' : 'teacher-btn--ghost'}"
+    data-main-tab="review"
+    style="font-size: 15px; padding: 10px 20px; background: ${ui.mainTab === 'review' ? 'var(--primary)' : 'transparent'}; border-color: ${ui.mainTab === 'review' ? 'var(--primary)' : 'var(--border)'};"
+  >
+    <i class="ri-check-double-line"></i> Перевірка
+  </button>
+</div>
+
+${
+  ui.mainTab === "bank"
+    ? renderTaskBankTab()
+    : ui.mainTab === "issue"
+      ? renderIssueTab()
+      : renderReviewTab()
+}
         </div>
       `;
 
-      if (ui.mainTab === 'grading') {
+      if (ui.mainTab === 'issue') {
         const taskSelect = $("assignmentTaskId");
         if (taskSelect) taskSelect.value = ui.selectedTaskId || "";
         const classSelect = $("assignmentClassCode");
@@ -703,13 +804,13 @@ window.App.teacherAssignments = (function () {
       const root = $("teacherInnerView");
       if (!root) return;
 
-      root.querySelectorAll("[data-main-tab]").forEach(btn => {
-        btn.onclick = () => {
-          const ui = ensureUiState();
-          ui.mainTab = btn.getAttribute("data-main-tab");
-          save?.(); renderView(); bindEvents();
-        };
-      });
+root.querySelectorAll("[data-main-tab]").forEach(btn => {
+  btn.onclick = () => {
+    const ui = ensureUiState();
+    ui.mainTab = btn.getAttribute("data-main-tab");
+    save?.(); renderView(); bindEvents();
+  };
+});
 
       root.querySelectorAll("[data-bank-category]").forEach(btn => {
         btn.onclick = () => {
@@ -799,6 +900,51 @@ window.App.teacherAssignments = (function () {
           finally { btn.disabled = false; }
         };
       });
+
+      root.querySelectorAll("[data-remove-assignment-student]").forEach((btn) => {
+  btn.onclick = async () => {
+    const assignmentId = btn.getAttribute("data-remove-assignment-student") || "";
+    const studentId = btn.getAttribute("data-remove-student-id") || "";
+    const studentName = btn.getAttribute("data-remove-student-name") || "учня";
+    const assignmentTitle = btn.getAttribute("data-remove-assignment-title") || "завдання";
+
+    if (!assignmentId || !studentId) return;
+
+    if (!confirm(`Прибрати завдання "${assignmentTitle}" лише для ${studentName}?`)) return;
+
+    btn.disabled = true;
+    try {
+      const result = await store.removeAssignmentForStudent(assignmentId, studentId);
+
+      if (result?.mode === "deleted") {
+        assignments = assignments.filter((item) => String(item.id) !== String(assignmentId));
+        submissions = submissions.filter(
+          (item) =>
+            !(String(item.assignment_id) === String(assignmentId) &&
+              String(item.student_id) === String(studentId))
+        );
+      } else if (result?.assignment) {
+        assignments = assignments.map((item) =>
+          String(item.id) === String(result.assignment.id) ? result.assignment : item
+        );
+
+        submissions = submissions.filter(
+          (item) =>
+            !(String(item.assignment_id) === String(assignmentId) &&
+              String(item.student_id) === String(studentId))
+        );
+      }
+
+      toast("✅ Завдання прибрано лише для одного учня");
+      renderView();
+      bindEvents();
+    } catch (err) {
+      toast(`❌ ${err.message}`);
+    } finally {
+      btn.disabled = false;
+    }
+  };
+});
 
       root.querySelectorAll("[data-review-submission-form]").forEach((form) => {
         form.onsubmit = async (e) => {
