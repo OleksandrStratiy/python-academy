@@ -117,10 +117,12 @@ function resetTransientTeacherClassesUi() {
       return Object.values(attempts).reduce((sum, val) => sum + Number(val || 0), 0);
     }
 
-    function getStudentCompletedCount(student) {
-      const completed = student?.progress?.user?.completed || {};
-      return Object.keys(completed).length;
-    }
+function getStudentCompletedCount(student) {
+  const progress = getStudentProgress(student);
+  const completedIds = Object.keys(progress?.user?.completed || {});
+  const solutionIds = Object.keys(progress?.user?.solutions || {});
+  return new Set([...completedIds, ...solutionIds]).size;
+}
     function getStudentLastActiveDays(student) {
   if (!student?.updated_at) return null;
 
@@ -167,9 +169,7 @@ function getStudentRibbonState(student) {
     text: "Є активність і поступ. Можна продовжувати в поточному темпі."
   };
 }
-    function getTaskCompletionKey(courseId, moduleId, taskIndex) {
-  return `${courseId}_${moduleId}_${taskIndex}`;
-}
+
 
 function isStudentTaskDone(student, courseId, moduleId, taskIndex) {
   const completed = getStudentProgress(student)?.user?.completed || {};
@@ -322,9 +322,24 @@ function getTaskCompletionKey(courseId, moduleId, taskIndex) {
   return `${courseId}_${moduleId}_${taskIndex}`;
 }
 
+function getStudentCompletionState(student, taskId) {
+  const progress = getStudentProgress(student);
+  const direct = progress?.user?.completed?.[taskId] || null;
+  if (direct) return direct;
+
+  const hasSavedSolution =
+    progress?.user?.solutions &&
+    Object.prototype.hasOwnProperty.call(progress.user.solutions, taskId);
+
+  if (!hasSavedSolution) return null;
+
+  if (progress?.user?.spoiled?.[taskId]) return "no_xp";
+  return "xp";
+}
+
 function isStudentTaskDone(student, courseId, moduleId, taskIndex) {
-  const completed = getStudentProgress(student)?.user?.completed || {};
-  return !!completed[getTaskCompletionKey(courseId, moduleId, taskIndex)];
+  const taskId = getTaskCompletionKey(courseId, moduleId, taskIndex);
+  return !!getStudentCompletionState(student, taskId);
 }
 
 function getStudentCourseSummary(student, course) {
@@ -945,19 +960,30 @@ function renderStudentAssignmentsBlock() {
                     </div>
                 ` : ""}
 
-                <div style="display: flex; justify-content: flex-end; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.05);">
-                    <button
-                      type="button"
-                      class="teacher-btn teacher-btn--primary teacher-btn--small"
-                      data-open-assignment-edit="${escapeHtml(item.id)}"
-                      data-open-assignment-title="${escapeHtml(item.title_snapshot || "")}"
-                      data-open-assignment-classcode="${escapeHtml(item.class_code || student.class_code || activeClassCode || "")}"
-                      data-open-assignment-studentid="${escapeHtml(student.id)}"
-                      style="display: flex; align-items: center; gap: 8px; border-radius: 8px;"
-                    >
-                      <i class="ri-external-link-line"></i> ${(subStatus === 'submitted' || subStatus === 'review') ? 'Перевірити завдання' : 'Переглянути / Редагувати'}
-                    </button>
-                </div>
+<div style="display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.05);">
+  <button
+    type="button"
+    class="teacher-btn teacher-btn--ghost teacher-btn--small teacher-btn--danger"
+    data-remove-student-assignment="${escapeHtml(item.id)}"
+    data-remove-student-id="${escapeHtml(student.id)}"
+    data-remove-student-title="${escapeHtml(item.title_snapshot || "")}"
+    style="display: flex; align-items: center; gap: 8px; border-radius: 8px;"
+  >
+    <i class="ri-user-unfollow-line"></i> Прибрати для учня
+  </button>
+
+  <button
+    type="button"
+    class="teacher-btn teacher-btn--primary teacher-btn--small"
+    data-open-assignment-edit="${escapeHtml(item.id)}"
+    data-open-assignment-title="${escapeHtml(item.title_snapshot || "")}"
+    data-open-assignment-classcode="${escapeHtml(item.class_code || student.class_code || activeClassCode || "")}"
+    data-open-assignment-studentid="${escapeHtml(student.id)}"
+    style="display: flex; align-items: center; gap: 8px; border-radius: 8px;"
+  >
+    <i class="ri-external-link-line"></i> ${(subStatus === 'submitted' || subStatus === 'review') ? 'Перевірити завдання' : 'Переглянути / Редагувати'}
+  </button>
+</div>
                 
               </div>
             </details>
@@ -2047,6 +2073,30 @@ if (classOpenAllInput) {
     }
   };
 }
+
+root.querySelectorAll("[data-remove-student-assignment]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const assignmentId = btn.getAttribute("data-remove-student-assignment") || "";
+    const studentId = btn.getAttribute("data-remove-student-id") || "";
+    const assignmentTitle = btn.getAttribute("data-remove-student-title") || "завдання";
+
+    if (!assignmentId || !studentId) return;
+    if (!confirm(`Прибрати завдання "${assignmentTitle}" лише для цього учня?`)) return;
+
+    btn.disabled = true;
+    try {
+      await assignmentStore.removeAssignmentForStudent(assignmentId, studentId);
+      await loadActiveStudentAssignments();
+      await refreshAndRender();
+      toast("✅ Завдання прибрано лише для цього учня");
+    } catch (err) {
+      console.error(err);
+      toast(`❌ ${err.message || "Не вдалося прибрати завдання"}`);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+});
 
 const refreshStudentAssignmentsBtn = $("teacherRefreshStudentAssignmentsBtn");
 if (refreshStudentAssignmentsBtn) {
