@@ -70,7 +70,8 @@ function normalizeAssignmentRow(row) {
     teacher_comment: row.teacher_comment || "",
     allow_late_submission: row.allow_late_submission !== false,
     created_at: row.created_at || null,
-    updated_at: row.updated_at || null
+    updated_at: row.updated_at || null,
+    hidden_for_students: Array.isArray(row.hidden_for_students) ? row.hidden_for_students : [],
   };
 }
 
@@ -215,24 +216,29 @@ function normalizeAssignmentRow(row) {
       return (data || []).map(normalizeAssignmentRow);
     }
 
-    async function fetchAssignmentsForStudent(studentId, classCode) {
-      if (!supa) return [];
-      const userId = await getCurrentUserId();
-      if (!userId) return [];
-      if (!studentId || !classCode) return [];
+async function fetchAssignmentsForStudent(studentId, classCode) {
+  if (!supa) return [];
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+  if (!studentId || !classCode) return [];
 
-      const { data, error } = await supa
-        .from("assignments")
-        .select("*")
-        .eq("teacher_id", userId)
-        .eq("class_code", classCode)
-        // ВИПРАВЛЕНО: додано подвійні лапки
-        .or(`student_id.eq."${studentId}",and(target_type.eq.class,class_code.eq."${classCode}")`)
-        .order("created_at", { ascending: false });
+  const { data, error } = await supa
+    .from("assignments")
+    .select("*")
+    .eq("teacher_id", userId)
+    .eq("class_code", classCode)
+    .or(`student_id.eq."${studentId}",and(target_type.eq.class,class_code.eq."${classCode}")`)
+    .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      return (data || []).map(normalizeAssignmentRow);
-    }
+  if (error) throw error;
+
+  return (data || [])
+    .map(normalizeAssignmentRow)
+    .filter((item) => {
+      const hidden = Array.isArray(item.hidden_for_students) ? item.hidden_for_students : [];
+      return !hidden.includes(String(studentId));
+    });
+}
 
     async function fetchSubmissionsByAssignmentIds(assignmentIds = []) {
       if (!supa) return [];
@@ -324,7 +330,8 @@ const row = {
   due_at: payload.dueAt || null,
   status: "active",
   allow_late_submission: payload.allowLateSubmission !== false,
-  updated_at: new Date().toISOString()
+  updated_at: new Date().toISOString(),
+  hidden_for_students: []
 };
 
   const { data, error } = await supa
@@ -352,6 +359,89 @@ const row = {
       if (error) throw error;
       return true;
     }
+async function removeAssignmentForStudent(assignmentId, studentId) {
+  if (!supa) throw new Error("Supabase не підключено");
+
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Користувача не знайдено");
+  if (!assignmentId) throw new Error("Не знайдено завдання");
+  if (!studentId) throw new Error("Не знайдено учня");
+
+  const { data: assignment, error: fetchError } = await supa
+    .from("assignments")
+    .select("*")
+    .eq("id", assignmentId)
+    .eq("teacher_id", userId)
+    .single();
+
+  if (fetchError) throw fetchError;
+  if (!assignment) throw new Error("Завдання не знайдено");
+
+  const safeStudentId = String(studentId);
+
+  // Якщо завдання було видане персонально цьому учню — видаляємо сам запис
+  if (
+    String(assignment.target_type || "") === "student" &&
+    String(assignment.student_id || "") === safeStudentId
+  ) {
+    const { error: deleteSubsError } = await supa
+      .from("assignment_submissions")
+      .delete()
+      .eq("assignment_id", assignmentId)
+      .eq("student_id", safeStudentId);
+
+    if (deleteSubsError) throw deleteSubsError;
+
+    const { error: deleteAssignmentError } = await supa
+      .from("assignments")
+      .delete()
+      .eq("id", assignmentId)
+      .eq("teacher_id", userId);
+
+    if (deleteAssignmentError) throw deleteAssignmentError;
+
+    return {
+      mode: "deleted",
+      assignmentId,
+      studentId: safeStudentId
+    };
+  }
+
+  // Якщо завдання було видане всьому класу — просто ховаємо його для одного учня
+  const prevHidden = Array.isArray(assignment.hidden_for_students)
+    ? assignment.hidden_for_students.map(String)
+    : [];
+
+  const nextHidden = Array.from(new Set([...prevHidden, safeStudentId]));
+
+  const { data: updatedRow, error: updateError } = await supa
+    .from("assignments")
+    .update({
+      hidden_for_students: nextHidden,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", assignmentId)
+    .eq("teacher_id", userId)
+    .select("*")
+    .single();
+
+  if (updateError) throw updateError;
+
+  // Якщо вже була здача цього учня — прибираємо і її
+  const { error: deleteSubError } = await supa
+    .from("assignment_submissions")
+    .delete()
+    .eq("assignment_id", assignmentId)
+    .eq("student_id", safeStudentId);
+
+  if (deleteSubError) throw deleteSubError;
+
+  return {
+    mode: "hidden",
+    studentId: safeStudentId,
+    assignment: normalizeAssignmentRow(updatedRow)
+  };
+}
 
     async function updateAssignment(assignmentId, patch) {
       if (!supa) throw new Error("Supabase не підключено");
@@ -427,7 +517,8 @@ const row = {
       createAssignment,
       deleteAssignment,
       updateAssignment,
-      reviewSubmission
+      reviewSubmission,
+      removeAssignmentForStudent,
     };
   }
 
