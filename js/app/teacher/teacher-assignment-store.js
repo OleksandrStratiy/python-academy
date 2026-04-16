@@ -178,6 +178,43 @@ function normalizeAssignmentRow(row) {
       return normalizeTaskRow(data);
     }
 
+    async function updateTaskBankItem(taskId, payload) {
+  if (!supa) throw new Error("Supabase не підключено");
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Користувача не знайдено");
+  if (!taskId) throw new Error("Не знайдено завдання для редагування");
+
+  const row = {
+    title: String(payload.title || "").trim(),
+    description: String(payload.description || "").trim(),
+    source: payload.source || "teacher",
+    solution_format: payload.solutionFormat || "text",
+    starter_code: payload.starterCode || "",
+    max_score: Math.max(1, Number(payload.maxScore || 12)),
+    subject: payload.subject || "",
+    category: payload.category || "",
+    difficulty: payload.difficulty || "",
+    is_public: !!payload.isPublic,
+    updated_at: new Date().toISOString()
+  };
+
+  if (!row.title) throw new Error("Укажи назву завдання");
+  if (!row.description) throw new Error("Укажи умову завдання");
+
+  const { data, error } = await supa
+    .from("task_bank")
+    .update(row)
+    .eq("id", taskId)
+    .eq("author_id", userId)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  if (!data) throw new Error("Не вдалося оновити завдання");
+
+  return normalizeTaskRow(data);
+}
+
     async function archiveTaskBankItem(taskId) {
       if (!supa) throw new Error("Supabase не підключено");
       const userId = await getCurrentUserId();
@@ -504,22 +541,23 @@ async function removeAssignmentForStudent(assignmentId, studentId) {
       return normalizeSubmissionRow(data, studentMap);
     }
 
-    return {
-      getCurrentUserId,
-      fetchTeacherClasses,
-      fetchStudentsByClass,
-      fetchTaskBank,
-      createTaskBankItem,
-      archiveTaskBankItem,
-      fetchAssignments,
-      fetchAssignmentsForStudent,
-      fetchSubmissionsByAssignmentIds,
-      createAssignment,
-      deleteAssignment,
-      updateAssignment,
-      reviewSubmission,
-      removeAssignmentForStudent,
-    };
+return {
+  getCurrentUserId,
+  fetchTeacherClasses,
+  fetchStudentsByClass,
+  fetchTaskBank,
+  createTaskBankItem,
+  updateTaskBankItem,
+  archiveTaskBankItem,
+  fetchAssignments,
+  fetchAssignmentsForStudent,
+  fetchSubmissionsByAssignmentIds,
+  createAssignment,
+  deleteAssignment,
+  updateAssignment,
+  reviewSubmission,
+  removeAssignmentForStudent,
+};
   }
 
   return { create };
