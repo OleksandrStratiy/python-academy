@@ -15,48 +15,80 @@ window.App.teacherShell = (function () {
       state.teacherUI.tab = tab;
     }
 
-    function renderShell(contentHtml = "") {
-      const currentTab = getTeacherTab();
-
-      return `
-        <section class="teacher-shell">
-<div class="teacher-shell__head">
-  <div class="teacher-shell__hero">
-    <div class="teacher-shell__hero-badge">
-      <i class="ri-dashboard-3-line"></i>
-    </div>
-
-    <div class="teacher-shell__hero-copy">
-  <div class="teacher-shell__eyebrow">Робочий простір</div>
-  <h2 class="teacher-shell__title">Кабінет вчителя</h2>
-  <p class="teacher-shell__sub">Класи, учні та завдання — спокійно і без зайвого шуму.</p>
-</div>
-  </div>
-</div>
-
-          <div class="teacher-tabs">
-            <button class="teacher-tab ${currentTab === "dashboard" ? "active" : ""}" data-teacher-tab="dashboard">
-              <i class="ri-dashboard-3-line"></i>
-              <span>Дашборд</span>
-            </button>
-
-            <button class="teacher-tab ${currentTab === "classes" ? "active" : ""}" data-teacher-tab="classes">
-              <i class="ri-group-line"></i>
-              <span>Класи</span>
-            </button>
-
-            <button class="teacher-tab ${currentTab === "assignments" ? "active" : ""}" data-teacher-tab="assignments">
-              <i class="ri-book-open-line"></i>
-              <span>Завдання</span>
-            </button>
-          </div>
-
-          <div id="teacherInnerView" class="teacher-inner-view">
-            ${contentHtml}
-          </div>
-        </section>
-      `;
+    function getTeacherAssignmentsTab() {
+      const raw = state.teacherAssignmentsUI?.mainTab || "issue";
+      if (raw === "bank") return "issue";
+      if (raw === "grading") return "review";
+      return ["issue", "review"].includes(raw) ? raw : "issue";
     }
+
+    function setTeacherAssignmentsTab(tab) {
+      state.teacherAssignmentsUI = state.teacherAssignmentsUI || {};
+      state.teacherAssignmentsUI.mainTab = tab === "review" ? "review" : "issue";
+    }
+
+function renderShell(contentHtml = "") {
+  const currentTab = getTeacherTab();
+  const currentAssignmentsTab = getTeacherAssignmentsTab();
+  const assignmentsActive = currentTab === "assignments";
+
+  return `
+    <section class="teacher-shell teacher-shell--v2">
+      <div class="teacher-shell__head teacher-shell__head--simple">
+        <div class="teacher-shell__title-wrap">
+          <h2 class="teacher-shell__title">Кабінет вчителя</h2>
+          <p class="teacher-shell__sub">Класи, учні та завдання</p>
+        </div>
+      </div>
+
+      <div class="teacher-shell__navline">
+        <div class="teacher-tabs teacher-tabs--unified">
+          <button
+            type="button"
+            class="teacher-tab ${currentTab === "dashboard" ? "active" : ""}"
+            data-teacher-tab="dashboard"
+          >
+            <i class="ri-dashboard-3-line"></i>
+            <span>Дашборд</span>
+          </button>
+
+          <button
+            type="button"
+            class="teacher-tab ${currentTab === "classes" ? "active" : ""}"
+            data-teacher-tab="classes"
+          >
+            <i class="ri-group-line"></i>
+            <span>Класи</span>
+          </button>
+
+          <span class="teacher-tabs__divider" aria-hidden="true"></span>
+
+          <button
+            type="button"
+            class="teacher-tab teacher-tab--task ${assignmentsActive && currentAssignmentsTab === "issue" ? "active" : ""}"
+            data-teacher-assignments-tab="issue"
+          >
+            <i class="ri-book-open-line"></i>
+            <span>Завдання</span>
+          </button>
+
+          <button
+            type="button"
+            class="teacher-tab teacher-tab--task ${assignmentsActive && currentAssignmentsTab === "review" ? "active" : ""}"
+            data-teacher-assignments-tab="review"
+          >
+            <i class="ri-check-double-line"></i>
+            <span>Перевірити</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="teacherInnerView" class="teacher-inner-view">
+        ${contentHtml}
+      </div>
+    </section>
+  `;
+}
 
     function bindTabEvents(onChange) {
       const root = $("teacherContent");
@@ -69,11 +101,22 @@ window.App.teacherShell = (function () {
           if (typeof onChange === "function") onChange(tab);
         });
       });
+
+      root.querySelectorAll("[data-teacher-assignments-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const tab = btn.getAttribute("data-teacher-assignments-tab");
+          setTeacherTab("assignments");
+          setTeacherAssignmentsTab(tab);
+          if (typeof onChange === "function") onChange("assignments");
+        });
+      });
     }
 
     return {
       getTeacherTab,
       setTeacherTab,
+      getTeacherAssignmentsTab,
+      setTeacherAssignmentsTab,
       renderShell,
       bindTabEvents
     };
