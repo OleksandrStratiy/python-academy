@@ -594,7 +594,9 @@ function updateUserUI() {
   // зберігаємо тільки якщо streak реально змінився
   if (streakChanged) save();
 }
-
+function setTeacherModeChrome(enabled) {
+  document.body.classList.toggle("teacher-mode", !!enabled);
+}
   // ===========================
   // Progress helpers
   // ===========================
@@ -1368,6 +1370,20 @@ const isAssignedAutoTask =
   String(activeAuto.courseId) === String(courseId) &&
   String(activeAuto.moduleId) === String(moduleId) &&
   Number(activeAuto.taskIndex) === Number(origIdx);
+ 
+  let isTeacherPreview = false;
+
+try {
+  const rawPreview = sessionStorage.getItem("teacher_auto_preview");
+  if (rawPreview) {
+    const preview = JSON.parse(rawPreview);
+
+    isTeacherPreview =
+      String(preview?.courseId || "") === String(courseId) &&
+      String(preview?.moduleId || "") === String(moduleId) &&
+      Number(preview?.taskIndex) === Number(origIdx);
+  }
+} catch {}
 
     if (!canOpenTask(courseId, moduleId, origIdx)) {
       const firstOpenIdx = refs.findIndex(r => canOpenTask(courseId, moduleId, r.origIdx));
@@ -1674,6 +1690,18 @@ _pendingInputResolve = null;
       // SUCCESS (Всі тести пройдені)
       // ==============================
 const already = !!completionState(id);
+if (isTeacherPreview) {
+  playSuccessSound(!!state.settings.sound);
+  fireConfetti();
+
+  toast("👀 Режим перегляду вчителя: перевірка виконана без збереження прогресу");
+  $("btnNext").classList.add("unlocked");
+
+  btn.disabled = false;
+  btn.style.opacity = "1";
+  btn.innerHTML = `<i class="ri-play-fill"></i> Run`;
+  return;
+}
 
 if (!already) {
   const spoiledNow = isSpoiled(id);
@@ -1899,6 +1927,7 @@ function renderByRoute() {
     if (!location.hash) goto("/home");
 
     if (!state.user) {
+      setTeacherModeChrome(false);
       showAuth();
       renderHome();
       return;
@@ -1912,6 +1941,7 @@ function renderByRoute() {
     const parts = routeParse();
     const root = parts[0] || "home";
 
+    setTeacherModeChrome(root === "teacher");
     if (root === "home") return renderHome();
     if ((root === "course" || root === "modules") && parts[1]) return renderCourseModules(parts[1]);
     if (root === "lesson" && parts.length === 4) return renderLesson(parts[1], parts[2], parts[3]);
