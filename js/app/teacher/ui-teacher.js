@@ -17,30 +17,47 @@ const classesApi = window.App.teacherClasses.create({
   save,
   toast,
   supa,
-  onOpenAssignmentsForClass: async (classCode) => {
-    state.teacherAssignmentsUI = state.teacherAssignmentsUI || {};
-    state.teacherAssignmentsUI.issueClassCode = classCode || "";
-    state.teacherAssignmentsUI.issueTargetType = "class";
-    state.teacherAssignmentsUI.issueStudentId = "";
-    state.teacherAssignmentsUI.issuedClassFilter = classCode || "all";
-    state.teacherAssignmentsUI.issuedSearch = "";
-    state.teacherUI = state.teacherUI || {};
-    state.teacherUI.tab = "assignments";
-    save?.();
-    await renderCurrentTab();
-  },
-  onOpenAssignmentsForStudent: async ({ classCode, studentId, assignmentTitle = "" }) => {
-    state.teacherAssignmentsUI = state.teacherAssignmentsUI || {};
-    state.teacherAssignmentsUI.issueClassCode = classCode || "";
-    state.teacherAssignmentsUI.issueTargetType = "student";
-    state.teacherAssignmentsUI.issueStudentId = studentId || "";
-    state.teacherAssignmentsUI.issuedClassFilter = classCode || "all";
-    state.teacherAssignmentsUI.issuedSearch = assignmentTitle || "";
-    state.teacherUI = state.teacherUI || {};
-    state.teacherUI.tab = "assignments";
-    save?.();
-    await renderCurrentTab();
-  }
+onOpenAssignmentsForClass: async (classCode) => {
+  state.teacherAssignmentsUI = state.teacherAssignmentsUI || {};
+
+  state.teacherAssignmentsUI.mainTab = "issue";
+  state.teacherAssignmentsUI.issueClassCode = classCode || "";
+  state.teacherAssignmentsUI.issueTargetType = "class";
+  state.teacherAssignmentsUI.issueStudentId = "";
+
+  // скидаємо review-фільтри, щоб не прилипав старий стан
+  state.teacherAssignmentsUI.issuedClassFilter = classCode || "all";
+  state.teacherAssignmentsUI.issuedStudentFilter = "all";
+  state.teacherAssignmentsUI.issuedStatusFilter = "all";
+  state.teacherAssignmentsUI.issuedSearch = "";
+
+  state.teacherUI = state.teacherUI || {};
+  state.teacherUI.tab = "assignments";
+
+  save?.();
+  await renderCurrentTab();
+},
+
+onOpenAssignmentsForStudent: async ({ classCode, studentId, assignmentTitle = "" }) => {
+  state.teacherAssignmentsUI = state.teacherAssignmentsUI || {};
+
+  state.teacherAssignmentsUI.mainTab = "review";
+  state.teacherAssignmentsUI.issueClassCode = classCode || "";
+  state.teacherAssignmentsUI.issueTargetType = "student";
+  state.teacherAssignmentsUI.issueStudentId = studentId || "";
+
+  // головне: review працює через issuedStudentFilter
+  state.teacherAssignmentsUI.issuedClassFilter = classCode || "all";
+  state.teacherAssignmentsUI.issuedStudentFilter = studentId || "all";
+  state.teacherAssignmentsUI.issuedStatusFilter = "all";
+  state.teacherAssignmentsUI.issuedSearch = assignmentTitle || "";
+
+  state.teacherUI = state.teacherUI || {};
+  state.teacherUI.tab = "assignments";
+
+  save?.();
+  await renderCurrentTab();
+}
 });
 
 const dashboardApi = window.App.teacherDashboard.create({
@@ -93,9 +110,9 @@ const assignmentsApi = window.App.teacherAssignments.create({
         innerHtml = dashboardApi.renderLoading();
       }
 
-      if (currentTab === "classes") {
-        innerHtml = `<div id="teacherClassesMount"></div>`;
-      }
+if (currentTab === "classes") {
+  innerHtml = "";
+}
 
       if (currentTab === "assignments") {
         innerHtml = assignmentsApi.renderLoading();
@@ -112,13 +129,9 @@ const assignmentsApi = window.App.teacherAssignments.create({
         await dashboardApi.mount();
       }
 
-      if (currentTab === "classes") {
-        const mountPoint = document.getElementById("teacherClassesMount");
-        if (mountPoint) {
-          mountPoint.id = "teacherInnerView";
-          await classesApi.mount();
-        }
-      }
+if (currentTab === "classes") {
+  await classesApi.mount();
+}
 
       if (currentTab === "assignments") {
         await assignmentsApi.mount();
