@@ -40,13 +40,12 @@ onOpenAssignmentsForClass: async (classCode) => {
 
 onOpenAssignmentsForStudent: async ({ classCode, studentId, assignmentTitle = "" }) => {
   state.teacherAssignmentsUI = state.teacherAssignmentsUI || {};
-
   state.teacherAssignmentsUI.mainTab = "review";
   state.teacherAssignmentsUI.issueClassCode = classCode || "";
   state.teacherAssignmentsUI.issueTargetType = "student";
   state.teacherAssignmentsUI.issueStudentId = studentId || "";
 
-  // головне: review працює через issuedStudentFilter
+  // ОЦЕ ДОДАЙ:
   state.teacherAssignmentsUI.issuedClassFilter = classCode || "all";
   state.teacherAssignmentsUI.issuedStudentFilter = studentId || "all";
   state.teacherAssignmentsUI.issuedStatusFilter = "all";
@@ -54,7 +53,6 @@ onOpenAssignmentsForStudent: async ({ classCode, studentId, assignmentTitle = ""
 
   state.teacherUI = state.teacherUI || {};
   state.teacherUI.tab = "assignments";
-
   save?.();
   await renderCurrentTab();
 }
