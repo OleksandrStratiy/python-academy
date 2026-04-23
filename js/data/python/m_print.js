@@ -229,7 +229,7 @@
           </div>
 
           <div class="task-condition">
-            <b>Умова:</b> Застав Python обчислити математичний приклад <code style="color: #0ea5e9;">20 - 8</code> прямо всередині функції <code style="color: #0ea5e9;">print()</code>.
+            <b>Умова:</b> Змусь Python обчислити математичний приклад <code style="color: #0ea5e9;">20 - 8</code> прямо всередині функції <code style="color: #0ea5e9;">print()</code>.
           </div>
         `,
         hint: `Передай вираз 20 - 8 всередину круглих дужок команди виводу. Без лапок!`,
@@ -403,13 +403,14 @@
         xp: 100,
         kind: "practice",
         difficulty: "Junior",
-        theory: `
-          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">sep — що стоїть між частинами</h2>
-          <p>Ми вже знаємо, що Python за замовчуванням ставить пробіл між частинами (аргументами) в print. Але що, якщо ми хочемо поставити між ними дефіс, крапку або щось інше?</p>
-          <p>Для цього в самому кінці дужок <code>print()</code> можна додати спеціальний параметр <b style="color: #3b82f6;">sep</b> (від англ. <i>separator</i> — розділювач).</p>
+ theory: `
+          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Замінюємо пробіли: sep</h2>
+          <p>Ти вже знаєш, що коли ми передаємо кілька значень через кому, функція <code style="color: #10b981;">print()</code> автоматично ставить між ними звичайні пробіли.</p>
+          <p>Але що, якщо ми хочемо об'єднати слова дефісом, крапкою чи іншим символом? Для цього існує спеціальний параметр <code style="color: #0ea5e9;">sep</code> (від англ. <i>separator</i> — розділювач).</p>
+          <p>Він завжди пишеться <b>в самому кінці</b> дужок, і в його лапках ми вказуємо, що саме хочемо поставити між нашими значеннями замість пробілів (наприклад: <code style="color: #0ea5e9;">sep="-"</code>).</p>
           
           <p><b>Приклад коду:</b></p>
-          <div class="code-box">print("A", "B", "C", sep="-")</div>
+          <div class="code-box"><span style="color:#6b7280;"># Замість пробілів ставимо дефіси:</span><br><b style="color: #10b981;">print</b>(<code style="color: #0ea5e9;">"A"</code>, <code style="color: #0ea5e9;">"B"</code>, <code style="color: #0ea5e9;">"C"</code>, sep=<code style="color: #0ea5e9;">"-"</code>)</div>
           <p><b>Результат у терміналі:</b></p>
           <div class="output-box">A-B-C</div>
         `,
@@ -422,7 +423,7 @@
             <b>Умова:</b> Передай числа від 5 до 1 як окремі аргументи (через кому). Щоб змінити стандартний пробіл на дефіс, додай в кінці параметр <code style="color: #0ea5e9;">sep="-"</code>.
           </div>
         `,
-        hint: `Код має бути таким: print(5, 4, 3, 2, 1, sep="-")`,
+        hint: `Спробуй так: print(перше_число, друге_число, ..., sep="твій_розділювач")`,
         expected: `5-4-3-2-1`,
         tests: [
           { type: "stdoutEquals", name: "Вивід правильний", value: "5-4-3-2-1", normalize: "soft" },
@@ -450,10 +451,10 @@
           </div>
 
           <div class="task-condition">
-            <b>Умова:</b> Передай числа 2030, 1 та 2 як окремі аргументи (без лапок!). В якості розділювача застосуй <code style="color: #0ea5e9;">sep='/'</code>.
+            <b>Умова:</b> Виведи числа <code>2030</code>, <code>1</code> та <code>2</code> як окремі аргументи (без лапок!). Як розділювач застосуй <code style="color: #0ea5e9;">sep="/"</code>.
           </div>
         `,
-        hint: `print(2030, 1, 2, sep="/")`,
+        hint: `Не забудь, що числа пишуться без лапок, а сам розділювач у параметрі sep — обов'язково в лапках!`,
         expected: `2030/1/2`,
         tests: [
           { type: "stdoutEquals", name: "Дата правильна", value: "2030/1/2", normalize: "soft" },
@@ -468,7 +469,7 @@
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">end — що буде в кінці рядка</h2>
           <p>Ти пам'ятаєш, що <code>print()</code> після виводу автоматично робить <b style="color: #10b981;">новий рядок</b>? Але ми можемо скасувати це правило за допомогою параметра <b style="color: #3b82f6;">end</b>!</p>
-          <p>Якщо в кінці написати <code>end=""</code> (дві порожні лапки), то переносу не буде, і наступний <code>print()</code> надрукує текст впритул до попереднього.</p>
+          <p>Якщо в кінці написати <code style="color: #0ea5e9;">end=""</code> (дві порожні лапки), то переносу не буде, і наступний <code>print()</code> надрукує текст впритул до попереднього.</p>
           
           <p><b>Приклад коду:</b></p>
           <div class="code-box">print("Hi", end="")<br>print("!")</div>
@@ -500,7 +501,7 @@
         difficulty: "Junior",
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Склеювання фрази через кілька print()</h2>
-          <p>Використовуючи <code>end=""</code>, можна збирати довгу фразу по шматочках з різних команд друку. Це дуже часто використовується для створення ефектів завантаження!</p>
+          <p>Використовуючи <code style="color: #0ea5e9;">end=""</code>, можна збирати довгу фразу по шматочках з різних команд друку. Це дуже часто використовується для створення ефектів завантаження!</p>
           
           <p><b>Приклад коду:</b></p>
           <div class="code-box">print("Початок", end="")<br>print("...", end="")<br>print("Кінець")</div>
@@ -508,7 +509,7 @@
           <div class="output-box">Початок...Кінець</div>
           
           <div class="theory-alert theory-alert-info">
-            💡 <b>Увага:</b> Остання команда <code>print("Кінець")</code> написана без <code>end=""</code>. Це означає, що після слова "Кінець" комп'ютер вже натисне Enter і завершить рядок.
+            💡 <b>Увага:</b> Остання команда <code style="color: #0ea5e9;">print("Кінець")</code> написана без <code style="color: #0ea5e9;">end=""</code>. Це означає, що після слова "Кінець" комп'ютер вже натисне Enter і завершить рядок.
           </div>
         `,
         desc: `
@@ -537,8 +538,8 @@
         difficulty: "Junior",
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">\\n — новий рядок всередині тексту</h2>
-          <p>Що робити, якщо ми хочемо надрукувати кілька рядків, але маємо право використати лише ОДИН <code>print()</code>?</p>
-          <p>Для цього існують <b style="color: #ef4444;">спецсимволи (escape-послідовності)</b>. Символ <b style="color: #3b82f6;">\\n</b> (від англійського <i>new line</i>) означає “перейти на новий рядок” прямо всередині тексту. Коли Python бачить <code>\\n</code>, він робить так, ніби ти натиснув клавішу <b>Enter</b>.</p>
+          <p>Що робити, якщо ми хочемо надрукувати кілька рядків, але маємо право використати лише ОДИН <code style="color: #0ea5e9;">print()</code>?</p>
+          <p>Для цього існують <b style="color: #ef4444;">спецсимволи (escape-послідовності)</b>. Символ <b style="color: #3b82f6;">\\n</b> (від англійського <i>new line</i>) означає “перейти на новий рядок” прямо всередині тексту. Коли Python бачить <code style="color: #0ea5e9;">\\n</code>, він робить так, ніби ти натиснув клавішу <b>Enter</b>.</p>
           
           <p><b>Приклад коду:</b></p>
           <div class="code-box">print("один\\nдва")</div>
@@ -547,12 +548,12 @@
         
           <div class="theory-alert theory-alert-danger">
             🚨 <b style="color: #ef4444;">ВАЖЛИВО:</b><br>
-            <code>\\n</code> треба писати <b>всередині лапок</b>, бо це частина тексту. Без лапок Python видасть помилку.
+            <code style="color: #0ea5e9;">\\n</code> треба писати <b>всередині лапок</b>, бо це частина тексту. Без лапок Python видасть помилку.
           </div>
         `,
         desc: `
           <div class="task-main">
-            <p>Тобі треба вивести список з трьох тварин (котик, песик, хом'як). Кожна тварина має бути на новому рядку, але ти маєш право використати лише одну команду друку!</p>
+            <p>Тобі треба вивести список з трьох тварин (котик, песик, хомʼяк). Кожна тварина має бути на новому рядку, але ти маєш право використати лише одну команду друку!</p>
           </div>
 
           <div class="task-condition">
@@ -572,286 +573,282 @@
           { type: "codeRegex", name: "Два переноси рядка", pattern: "\\\\n", flags: "g", min: 2, checkRaw: true }
         ]
       },
-      {
-        title: "📏 Великий стрибок (\\t)",
-        xp: 140,
-        kind: "practice",
-        difficulty: "Junior",
-        theory: `
-          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Створення колонок</h2>
-          <p>Ще один корисний спецсимвол — це <b style="color: #3b82f6;">\\t</b> (від англ. <i>tab</i>). Він робить великий відступ-стрибок, ніби ти натиснув клавішу Tab на клавіатурі.</p>
-          <p>Це швидкий спосіб розсунути слова на широку відстань і зробити рівні колонки.</p>
-          
-          <p><b>Приклад коду:</b></p>
-          <div class="code-box">print("Ім'я\\tВік")</div>
-          <p><b>Результат у терміналі:</b></p>
-          <div class="output-box">Ім'я    Вік</div>
-        `,
-        desc: `
-          <div class="task-main">
-            <p>Тобі потрібно створити заголовок для таблиці лідерів з двох слів: "Гравець" та "Бал".</p>
-          </div>
+{
+  title: "📏 Великий стрибок (\\t)",
+  xp: 140,
+  kind: "practice",
+  difficulty: "Junior",
+  theory: `
+    <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Створення колонок</h2>
+    <p>Ще один корисний спецсимвол — це <code style="color: #f59e0b;">\\t</code> (від англ. <i>tab</i>). Він робить великий відступ-стрибок, ніби ти натиснув клавішу Tab на клавіатурі.</p>
+    <p>Це швидкий спосіб розсунути слова на широку відстань і зробити рівні колонки.</p>
+    
+    <p><b>Приклад коду:</b></p>
+    <div class="code-box"><b style="color: #10b981;">print</b>(<code style="color: #0ea5e9;">"Ім'я\\tВік"</code>)</div>
+    <p><b>Результат у терміналі:</b></p>
+    <div class="output-box">Ім'я&nbsp;&nbsp;&nbsp;Вік</div>
+  `,
+  desc: `
+    <div class="task-main">
+      <p>Тобі потрібно створити заголовок для таблиці лідерів з двох слів: "Гравець" та "Бал".</p>
+    </div>
 
-          <div class="task-condition">
-            <b>Умова:</b> Напиши їх в одній команді виводу. Замість пробілу між словами використай спецсимвол табуляції <code style="color: #0ea5e9;">\\t</code>.
-          </div>
-        `,
-        hint: `У тебе має бути один рядок тексту, а великий відступ між словами зробить спецсимвол табуляції: "Гравець\\tБал"`,
-        expected: `Гравець\t Бал`,
-        tests: [
-          { type: "stdoutEquals", name: "Табуляція працює", value: "Гравець\tБал", normalize: "strict" },
-          { type: "codeIncludes", name: "Використано \\t", value: "\\t", checkRaw: true }
-        ]
-      },
-      {
-        title: "📋 Міні-таблиця (\\t та \\n)",
-        xp: 150,
-        kind: "practice",
-        difficulty: "Junior",
-        theory: `
-          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Суперкомбо спецсимволів</h2>
-          <p>Що буде, якщо використати і перенос, і табуляцію в одному тексті? Ми отримаємо справжню табличку!</p>
-          
-          <p><b>Приклад коду:</b></p>
-          <div class="code-box">print("А\\t1\\nБ\\t2")</div>
-          <p><b>Результат у терміналі:</b></p>
-          <div class="output-box">А    1<br>Б    2</div>
-        `,
-        desc: `
-          <div class="task-main">
-            <p>Створи меню магазину з двох товарів. Перший рядок — Меч (ціна 100). Другий рядок — Лук (ціна 50).</p>
-          </div>
+    <div class="task-condition">
+      <b>Умова:</b> Напиши їх в одній команді виводу. Замість пробілу між словами використай спецсимвол табуляції <code style="color: #0ea5e9;">\\t</code>.
+    </div>
+  `,
+  hint: `Обидва слова мають бути в одному рядку тексту, а між ними треба поставити спеціальний символ табуляції, а не звичайний пробіл.`,
+  expected: `Гравець\t Бал`,
+  tests: [
+    { type: "stdoutEquals", name: "Табуляція працює", value: "Гравець\tБал", normalize: "strict" },
+    { type: "codeIncludes", name: "Використано \\t", value: "\\t", checkRaw: true }
+  ]
+},
+     {
+  title: "📋 Міні-таблиця (\\t та \\n)",
+  xp: 150,
+  kind: "practice",
+  difficulty: "Junior",
+  theory: `
+    <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Суперкомбо спецсимволів</h2>
+    <p>Що буде, якщо використати і перенос, і табуляцію в одному тексті? Ми отримаємо справжню табличку!</p>
+    
+    <p><b>Приклад коду:</b></p>
+    <div class="code-box">print("А\\t1\\nБ\\t2")</div>
+    <p><b>Результат у терміналі:</b></p>
+    <div class="output-box">А&nbsp;&nbsp;&nbsp;1<br>Б&nbsp;&nbsp;&nbsp;2</div>
+  `,
+  desc: `
+    <div class="task-main">
+      <p>Створи меню магазину з двох товарів. Перший рядок — Меч (ціна 100). Другий рядок — Лук (ціна 50).</p>
+    </div>
 
-          <div class="task-condition">
-            <b>Умова:</b> Використай <b>ОДИН</b> <code style="color: #0ea5e9;">print()</code>. Між назвою та ціною в одному рядку має бути табуляція <code style="color: #0ea5e9;">\\t</code>, а між самими товарами — перенос <code style="color: #0ea5e9;">\\n</code>.
-          </div>
+    <div class="task-condition">
+      <b>Умова:</b> Використай <b>ОДИН</b> <code style="color: #0ea5e9;">print()</code>. Між назвою та ціною в одному рядку має бути табуляція <code style="color: #0ea5e9;">\\t</code>, а між самими товарами — перенос <code style="color: #0ea5e9;">\\n</code>.
+    </div>
 
-          <div class="task-note">
-            <b>Важливо:</b> Не використовуй пробіли. Тільки слова і спецсимволи!
-          </div>
-        `,
-        hint: `Твій текст має виглядати приблизно так: "Меч\\t100\\nЛук\\t50"`,
-        expected: `Меч\t100\nЛук\t50`,
-        tests: [
-          { type: "stdoutEquals", name: "Таблиця намальована", value: "Меч\t100\nЛук\t50", normalize: "strict" },
-          { type: "codeRegex", name: "Один print()", pattern: "print\\s*\\(", flags: "g", max: 1 },
-          { type: "codeIncludes", name: "Є \\t", value: "\\t", checkRaw: true },
-          { type: "codeIncludes", name: "Є \\n", value: "\\n", checkRaw: true }
-        ]
-      },
-      {
-        title: "🗣️ Лапки в тексті",
-        xp: 140,
-        kind: "practice",
-        difficulty: "Junior",
-        theory: `
-          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Як вивести лапки всередині рядка?</h2>
-          <p>Якщо ти хочеш надрукувати текст у лапках, Python може заплутатися, де початок тексту, а де його кінець.</p>
-          
-          <p>Є два зручних способи це обійти:</p>
-          
-          <p><b>1. Екранування (захист)</b><br>
-          Постав зворотний слеш <b style="color: #ef4444;"><code>\\</code></b> прямо перед внутрішньою лапкою. Це скаже комп'ютеру: "Це просто символ тексту, не закривай рядок!"</p>
-          <div class="code-box">print("Він сказав: \\"Привіт!\\"")</div>
-          
-          <p style="margin-top: 15px;"><b>2. Різні лапки (найпростіше)</b><br>
-          Візьми весь текст зовні в <b style="color: #3b82f6;">одинарні</b> лапки <code>' '</code>, тоді всередині можна спокійно писати <b style="color: #10b981;">подвійні</b> <code>" "</code> (або навпаки).</p>
-          <div class="code-box">print('Він сказав: "Привіт!"')</div>
-        `,
-        desc: `
-          <div class="task-main">
-            <p>Письменник хоче процитувати персонажа на екрані. Текст має містити подвійні лапки: <code>Вона сказала: "Так!"</code>.</p>
-          </div>
+    <div class="task-note">
+      <b>Важливо:</b> Не вставляй звичайні пробіли всередині тексту. Потрібно використати саме спецсимволи <code style="color: #0ea5e9;">\\t</code> і <code style="color: #0ea5e9;">\\n</code>.
+    </div>
+  `,
+  hint: `Подумай, як записати обидва товари в одному тексті: між назвою і ціною потрібна табуляція, а між першим і другим товаром — перехід на новий рядок.`,
+  expected: `Меч\t100\nЛук\t50`,
+  tests: [
+    { type: "stdoutEquals", name: "Таблиця намальована", value: "Меч\t100\nЛук\t50", normalize: "strict" },
+    { type: "codeRegex", name: "Рівно один print()", pattern: "print\\s*\\(", flags: "g", min: 1, max: 1 },
+    { type: "codeIncludes", name: "Є \\t", value: "\\t", checkRaw: true },
+    { type: "codeIncludes", name: "Є \\n", value: "\\n", checkRaw: true }
+  ]
+},
+     {
+  title: "🗣️ Лапки в тексті",
+  xp: 140,
+  kind: "practice",
+  difficulty: "Junior",
+  theory: `
+    <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Як вивести лапки всередині рядка?</h2>
+    <p>Якщо ти хочеш надрукувати текст у лапках, Python може заплутатися, де початок тексту, а де його кінець.</p>
+    
+    <p>Є два зручних способи це обійти:</p>
+    
+    <p><b>1. Екранування (захист)</b><br>
+    Постав зворотний слеш <b style="color: #ef4444;"><code>\\</code></b> прямо перед внутрішньою лапкою. Це скаже комп'ютеру: "Це просто символ тексту, не закривай рядок!"</p>
+    <div class="code-box">print("Він сказав: \\"Привіт!\\"")</div>
+    
+    <p style="margin-top: 15px;"><b>2. Різні лапки (найпростіше)</b><br>
+    Візьми весь текст зовні в <b style="color: #3b82f6;">одинарні</b> лапки <code>' '</code>, тоді всередині можна спокійно писати <b style="color: #10b981;">подвійні</b> <code>" "</code> (або навпаки).</p>
+    <div class="code-box">print('Він сказав: "Привіт!"')</div>
+  `,
+  desc: `
+    <div class="task-main">
+      <p>Письменник хоче процитувати персонажа на екрані. Текст має містити подвійні лапки: <code>Вона сказала: "Так!"</code>.</p>
+    </div>
 
-          <div class="task-condition">
-            <b>Умова:</b> Виведи цей рядок. Використай будь-який із двох способів (екранування <code style="color: #0ea5e9;">\\</code> або одинарні лапки <code style="color: #0ea5e9;">''</code> зовні), щоб комп'ютер не видав помилку, а успішно надрукував подвійні лапки.
-          </div>
-        `,
-        hint: `Тобі треба надрукувати подвійні лапки всередині тексту. Найпростіше - обгорни весь текст в одинарні лапки '...'.`,
-        expected: `Вона сказала: "Так!"`,
-        tests: [
-          { type: "stdoutEquals", name: "Лапки є у виводі", value: `Вона сказала: "Так!"`, normalize: "soft" },
-          { type: "codeRegex", name: "Використано правильний спосіб запису лапок", pattern: "print\\s*\\(\\s*'(?:[^'\\\\]|\\\\.)*\"(?:[^'\\\\]|\\\\.)*\"(?:[^'\\\\]|\\\\.)*'\\s*\\)|print\\s*\\(\\s*\"(?:[^\"\\\\]|\\\\.)*\\\\\"(?:[^\"\\\\]|\\\\.)*\\\\\"(?:[^\"\\\\]|\\\\.)*\"\\s*\\)", checkRaw: true }
-        ]
-      },
-      {
-        title: "📁 Шлях на Windows (\\\\)",
-        xp: 160,
-        kind: "practice",
-        difficulty: "Junior",
-        theory: `
-          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">\\\\ — щоб надрукувати \\</h2>
-          <p>Ти вже знаєш, що символ <code>\\</code> (бекслеш) у Python запускає магію (наприклад, <code>\\n</code> або <code>\\t</code>).</p>
-          <p>Тому, якщо ти просто хочеш надрукувати звичайний бекслеш на екрані (наприклад, для шляху до файлу), тобі потрібно написати його <b style="color: #ef4444;">двічі</b>: <code>\\\\</code>. Перший скіпок захищає другий!</p>
-          <div class="code-box">print("C:\\\\Temp\\\\file.txt")</div>
-          <p><b>Результат у терміналі:</b></p>
-          <div class="output-box">C:\\Temp\\file.txt</div>
-        `,
-        desc: `
-          <div class="task-main">
-            <p>Програма має вивести системний шлях до гри на Windows: <code>D:\\Games\\Minecraft</code>.</p>
-          </div>
+    <div class="task-condition">
+      <b>Умова:</b> Виведи цей рядок. Використай будь-який із двох способів (екранування <code style="color: #0ea5e9;">\\</code> або одинарні лапки <code style="color: #0ea5e9;">''</code> зовні), щоб комп'ютер не видав помилку, а успішно надрукував подвійні лапки.
+    </div>
+  `,
+  hint: `Подумай, як зробити так, щоб лапки всередині тексту не завершували рядок завчасно. Для цього можна або "захистити" внутрішні лапки, або використати різні типи лапок зовні та всередині.`,
+  expected: `Вона сказала: "Так!"`,
+  tests: [
+    { type: "stdoutEquals", name: "Лапки є у виводі", value: `Вона сказала: "Так!"`, normalize: "strict" },
+    { type: "codeRegex", name: "Використано правильний спосіб запису лапок", pattern: "print\\s*\\(\\s*'(?:[^'\\\\]|\\\\.)*\"(?:[^'\\\\]|\\\\.)*\"(?:[^'\\\\]|\\\\.)*'\\s*\\)|print\\s*\\(\\s*\"(?:[^\"\\\\]|\\\\.)*\\\\\"(?:[^\"\\\\]|\\\\.)*\\\\\"(?:[^\"\\\\]|\\\\.)*\"\\s*\\)", checkRaw: true }
+  ]
+},
+     {
+  title: "📁 Шлях на Windows (\\\\)",
+  xp: 160,
+  kind: "practice",
+  difficulty: "Junior",
+  theory: `
+    <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">\\\\ — щоб надрукувати \\</h2>
+    <p>Ти вже знаєш, що символ <code>\\</code> (бекслеш) у Python запускає магію (наприклад, <code>\\n</code> або <code>\\t</code>).</p>
+    <p>Тому, якщо ти просто хочеш надрукувати звичайний бекслеш на екрані (наприклад, для шляху до файлу), тобі потрібно написати його <b style="color: #ef4444;">двічі</b>: <code>\\\\</code>. Перший слеш захищає другий!</p>
+    <div class="code-box">print("C:\\\\Temp\\\\file.txt")</div>
+    <p><b>Результат у терміналі:</b></p>
+    <div class="output-box">C:\\Temp\\file.txt</div>
+  `,
+  desc: `
+    <div class="task-main">
+      <p>Програма має вивести системний шлях до гри на Windows: <code>D:\\Games\\Minecraft</code>.</p>
+    </div>
 
-          <div class="task-condition">
-            <b>Умова:</b> Пам'ятай, що кожен одинарний зворотний слеш у фінальному результаті вимагає написати подвійний зворотний слеш <code style="color: #0ea5e9;">\\\\</code> у твоєму коді.
-          </div>
-        `,
-        hint: `Твій текст у лапках має виглядати так: "D:\\\\Games\\\\Minecraft"`,
-        expected: `D:\\Games\\Minecraft`,
-        tests: [
-          { type: "stdoutEquals", name: "Шлях виведено", value: "D:\\Games\\Minecraft", normalize: "strict" },
-          { type: "codeRegex", name: "Використано \\\\ у коді", pattern: "\\\\\\\\", checkRaw: true }
-        ]
-      },
+    <div class="task-condition">
+      <b>Умова:</b> Пам'ятай, що кожен одинарний зворотний слеш у фінальному результаті вимагає написати подвійний зворотний слеш <code style="color: #0ea5e9;">\\\\</code> у твоєму коді.
+    </div>
+  `,
+  hint: `Подумай, як записати шлях у лапках так, щоб Python не сприймав зворотний слеш як початок спецсимволу. Кожен бекслеш у результаті треба “захистити” ще одним.`,
+  expected: `D:\\Games\\Minecraft`,
+  tests: [
+    { type: "stdoutEquals", name: "Шлях виведено", value: "D:\\Games\\Minecraft", normalize: "strict" },
+    { type: "codeRegex", name: "Шлях записано з подвійними слешами в коді", pattern: "D:\\\\\\\\Games\\\\\\\\Minecraft", checkRaw: true }
+  ]
+},
 
       // ==========================================
       // 📝 ПІДСУМКОВІ (QUIZ) JUNIOR
       // ==========================================
 
-      {
-        title: "🎯 Підсумкова 1: sep без пробілів",
-        xp: 220,
-        kind: "quiz",
-        difficulty: "Junior",
-        theory: `
-          <h2 style="color: #8b5cf6; font-size: 18px; margin-bottom: 10px;">Підсумкова №1</h2>
-          <p>Твоя задача — зробити вивід із специфічним розділювачем. Для цього потрібен параметр <b style="color: #3b82f6;">sep</b>.</p>
-        `,
-        desc: `
-          <div class="task-main">
-            <p>Система безпеки генерує ключ з 4 цифр: 1, 2, 3, 4. Вони мають бути склеєні через вертикальну риску (pipe).</p>
-          </div>
+     {
+  title: "🎯 Підсумкова 1: sep без пробілів",
+  xp: 220,
+  kind: "quiz",
+  difficulty: "Junior",
+  theory: `
+    <h2 style="color: #8b5cf6; font-size: 18px; margin-bottom: 10px;">Підсумкова №1</h2>
+    <p>Твоя задача — зробити вивід із специфічним розділювачем. Для цього потрібен параметр <b style="color: #3b82f6;">sep</b>.</p>
+  `,
+  desc: `
+    <div class="task-main">
+      <p>Система безпеки генерує ключ з 4 цифр: 1, 2, 3, 4. Вони мають бути склеєні через вертикальну риску (|).</p>
+    </div>
 
-          <div class="task-condition">
-            <b>Умова:</b> Передай ці 4 числа як окремі аргументи (через кому), а для об'єднання використай параметр <code style="color: #0ea5e9;">sep="|"</code>.
-          </div>
-        `,
-        hint: `Не забудь вказати символ вертикальної риски (pipe) як розділювач в кінці: print(1, 2, 3, 4, sep="|")`,
-        expected: `1|2|3|4`,
-        tests: [
-          { type: "stdoutEquals", name: "Вивід правильний", value: "1|2|3|4", normalize: "strict" },
-          { type: "codeRegex", name: "Використано sep='|'", pattern: "sep\\s*=\\s*['\\\"]\\|['\\\"]", checkRaw: true },
-          { type: "codeRegex", name: "Чотири числа як аргументи", pattern: "print\\s*\\(\\s*1\\s*,\\s*2\\s*,\\s*3\\s*,\\s*4", flags: "s" }
-        ]
-      },
-
-      {
-        title: "🎯 Підсумкова 2: end + один рядок",
-        xp: 240,
-        kind: "quiz",
-        difficulty: "Junior",
-        theory: `
-          <h2 style="color: #8b5cf6; font-size: 18px; margin-bottom: 10px;">Підсумкова №2</h2>
-          <p>Треба зробити один рядок з двох <code>print()</code>. Для цього в першому потрібно <b style="color: #10b981;">скасувати перенос рядка</b> за допомогою <b style="color: #3b82f6;">end</b>.</p>
-        `,
-        desc: `
-          <div class="task-main">
-            <p>Два сенсори надсилають дані по черзі, але вони мають скластися в одне суцільне повідомлення: START--FINISH.</p>
-          </div>
-
-          <div class="task-condition">
-            <b>Умова:</b> Використай ДВА <code style="color: #0ea5e9;">print()</code>. Перший друкує <code style="color: #0ea5e9;">"START--"</code> без нового рядка (завдяки <code style="color: #0ea5e9;">end</code>); другий додає <code style="color: #0ea5e9;">"FINISH"</code>.
-          </div>
-        `,
-        hint: `Зміни поведінку першої команди виводу, додавши спеціальний параметр порожнього кінця (end="") після коми.`,
-        expected: `START--FINISH`,
-        tests: [
-          { type: "stdoutEquals", name: "Вивід правильний", value: "START--FINISH", normalize: "strict" },
-          { type: "codeRegex", name: "Два print()", pattern: "print\\s*\\(", flags: "g", min: 2, max: 2 },
-          { type: "codeRegex", name: "Використано end=\"\"", pattern: "end\\s*=\\s*['\\\"][\\s]*['\\\"]", checkRaw: true }
-        ]
-      },
+    <div class="task-condition">
+      <b>Умова:</b> Передай ці 4 числа як окремі аргументи (через кому), а для об'єднання використай параметр <code style="color: #0ea5e9;">sep="|"</code>.
+    </div>
+  `,
+  hint: `Числа потрібно передати окремо, а символ вертикальної риски задати як розділювач через спеціальний параметр print().`,
+  expected: `1|2|3|4`,
+  tests: [
+  { type: "stdoutEquals", name: "Вивід правильний", value: "1|2|3|4", normalize: "soft" },
+  { type: "codeRegex", name: "Використано sep='|'", pattern: "sep\\s*=\\s*['\\\"]\\|['\\\"]", checkRaw: true },
+  { type: "codeRegex", name: "Чотири числа передано окремими аргументами", pattern: "print\\s*\\(\\s*1\\s*,\\s*2\\s*,\\s*3\\s*,\\s*4\\s*,", flags: "s" }
+]
+},
 
       {
-        title: "🎯 Підсумкова 3: Статистика героя",
-        xp: 300,
-        kind: "quiz",
-        difficulty: "Junior",
-        theory: `
-          <h2 style="color: #8b5cf6; font-size: 18px; margin-bottom: 10px;">Підсумкова №3: Абсолютне комбо</h2>
-          <p>Тут ти поєднаєш одразу кілька важливих речей:</p>
-          <ul style="padding-left: 20px;">
-            <li>математику без лапок</li>
-            <li><code>sep=""</code>, щоб прибрати пробіли між частинами</li>
-            <li><code>end=""</code>, щоб другий print не починався з нового рядка</li>
-          </ul>
-        `,
-        desc: `
-          <div class="task-main">
-            <p>Система має вивести життєві показники героя в один суцільний рядок: <code>Герой:100HP</code> (без жодного пробілу!).</p>
-          </div>
-        
-          <div class="task-condition">
-            <b>Умова:</b><br>
-            1) Використай ДВА <code style="color: #0ea5e9;">print()</code>.<br>
-            2) Перший print друкує текст <code style="color: #0ea5e9;">"Герой:"</code> та число 100, отримане обчисленням <code style="color: #0ea5e9;">50 + 50</code>.<br>
-            3) У першому print обов'язково використай <code style="color: #0ea5e9;">sep=""</code> (щоб прибрати пробіл) та <code style="color: #0ea5e9;">end=""</code> (щоб не було переносу).<br>
-            4) Другий print просто додруковує текст <code style="color: #0ea5e9;">"HP"</code>.
-          </div>
-        `,
-        hint: `Подумай, як у першому print прибрати і пробіл, і перенос рядка, а в другому просто дописати кінець слова.`,
-        expected: `Герой:100HP`,
-        tests: [
-          { type: "stdoutEquals", name: "Точний вивід без пробілів", value: "Герой:100HP", normalize: "strict" },
-          { type: "codeRegex", name: "Використано порожній sep", pattern: "sep\\s*=\\s*['\\\"]['\\\"]" },
-          { type: "codeRegex", name: "Використано порожній end", pattern: "end\\s*=\\s*['\\\"]['\\\"]" },
-          { type: "codeRegex", name: "Є саме вираз 50 + 50", pattern: "50\\s*\\+\\s*50" },
-          { type: "codeRegex", name: "Використано два print()", pattern: "print\\s*\\(", flags: "g", min: 2, max: 2 }
-        ]
-      },
+  title: "🎯 Підсумкова 2: end + один рядок",
+  xp: 240,
+  kind: "quiz",
+  difficulty: "Junior",
+  theory: `
+    <h2 style="color: #8b5cf6; font-size: 18px; margin-bottom: 10px;">Підсумкова №2</h2>
+    <p>Треба зробити один рядок з двох <code>print()</code>. Для цього в першому потрібно <b style="color: #10b981;">скасувати перенос рядка</b> за допомогою <b style="color: #3b82f6;">end</b>.</p>
+  `,
+  desc: `
+    <div class="task-main">
+      <p>Два сенсори надсилають дані по черзі, але вони мають скластися в одне суцільне повідомлення: START--FINISH.</p>
+    </div>
 
-      // ===============================
-      // 🟢 JUNIOR BOSS
-      // ===============================
-      {
-        title: "🐉 БОС (Junior): Профіль гравця",
-        xp: 500,
-        kind: "boss",
-        difficulty: "Junior",
-        theory: `
-          <h2 style="color: #ef4444; font-size: 18px; margin-bottom: 10px;">Фінальний іспит рівня Junior</h2>
-          <p>Ти вже знаєш усі базові інструменти для виводу тексту. Час поєднати їх в одному складному завданні <b style="color: #ef4444;">без жодних готових підказок</b>!</p>
-          <p>Тут тобі знадобляться:</p>
-          <ul style="padding-left: 20px;">
-            <li>Перенос рядка <code style="color: #0ea5e9;">\\n</code></li>
-            <li>Табуляція <code style="color: #0ea5e9;">\\t</code> (для рівних стовпчиків)</li>
-            <li>Лапки всередині тексту (екранування <code style="color: #0ea5e9;">\\"</code> або різні лапки)</li>
-            <li>Математика (числа без лапок)</li>
-            <li>Злиття без зайвих пробілів <code style="color: #0ea5e9;">sep=""</code></li>
-          </ul>
-        `,
-        desc: `
-          <div class="task-main">
-            <p>База даних має вивести профіль адміністратора. Слово Admin має бути в лапках, а між словом Rank: і числом 99 стоїть величезний пробіл (табуляція).</p>
-          </div>
-        
-          <div class="task-condition">
-            <b>Умови місії:</b><br>
-            1) Використай рівно <b>ОДИН</b> <code style="color: #0ea5e9;">print()</code>.<br>
-            2) Слово <code style="color: #0ea5e9;">Admin</code> обов'язково має бути в подвійних лапках.<br>
-            3) Зроби перехід на другий рядок за допомогою <code style="color: #0ea5e9;">\\n</code>.<br>
-            4) Зроби відступ після Rank: за допомогою <code style="color: #0ea5e9;">\\t</code>.<br>
-            5) Число 99 ти маєш отримати як результат додавання <code style="color: #0ea5e9;">90 + 9</code>.<br>
-            6) Використай параметр <code style="color: #0ea5e9;">sep=""</code>, щоб числа і текст склеїлися ідеально рівно.
-          </div>
-        `,
-        hint: `Згадай усе, що ти вже вивчив: лапки всередині тексту, \\n, \\t, математику без лапок і sep="". Тут важливо не вгадати, а акуратно зібрати все разом в одному print().`,
-        expected: `User: "Admin"\nRank:\t99`,
-        tests: [
-          {
-            type: "stdoutEquals",
-            name: "Профіль ідеальний",
-            value: "User: \"Admin\"\nRank:\t99",
-            normalize: "strict"
-          },
-          { type: "codeRegex", name: "Рівно один print()", pattern: "print\\s*\\(", flags: "g", min: 1, max: 1 },
-          { type: "codeIncludes", name: "Є \\n", value: "\\n", checkRaw: true },
-          { type: "codeIncludes", name: "Є \\t", value: "\\t", checkRaw: true },
-          { type: "codeIncludes", name: "Математика (90 + 9)", value: "+" },
-          { type: "codeRegex", name: "Використано sep=\"\"", pattern: "sep\\s*=\\s*['\"]['\"]", checkRaw: true }
-        ]
-      },
+    <div class="task-condition">
+      <b>Умова:</b> Використай ДВА <code style="color: #0ea5e9;">print()</code>. Перший друкує <code style="color: #0ea5e9;">"START--"</code> без нового рядка (завдяки <code style="color: #0ea5e9;">end</code>); другий додає <code style="color: #0ea5e9;">"FINISH"</code>.
+    </div>
+  `,
+  hint: `Подумай, як змусити першу команду print() не переходити на новий рядок, щоб друга команда дописала текст одразу поруч.`,
+  expected: `START--FINISH`,
+  tests: [
+    { type: "stdoutEquals", name: "Вивід правильний", value: "START--FINISH", normalize: "strict" },
+    { type: "codeRegex", name: "Рівно два print()", pattern: "print\\s*\\(", flags: "g", min: 2, max: 2 },
+    { type: "codeRegex", name: "У першому print використано end", pattern: "print\\s*\\(\\s*['\\\"]START--['\\\"]\\s*,\\s*end\\s*=\\s*['\\\"]['\\\"]\\s*\\)", checkRaw: true },
+    { type: "codeRegex", name: "Другий print друкує FINISH", pattern: "print\\s*\\(\\s*['\\\"]FINISH['\\\"]\\s*\\)", checkRaw: true }
+  ]
+},
 
+{
+  title: "🎯 Підсумкова 3: Статистика героя",
+  xp: 300,
+  kind: "quiz",
+  difficulty: "Junior",
+  theory: `
+    <h2 style="color: #8b5cf6; font-size: 18px; margin-bottom: 10px;">Підсумкова №3: Абсолютне комбо</h2>
+    <p>Тут ти поєднаєш одразу кілька важливих речей:</p>
+    <ul style="padding-left: 20px;">
+      <li>математику без лапок</li>
+      <li><code>sep=""</code>, щоб прибрати пробіли між частинами</li>
+      <li><code>end=""</code>, щоб другий print не починався з нового рядка</li>
+    </ul>
+  `,
+  desc: `
+    <div class="task-main">
+      <p>Система має вивести життєві показники героя в один суцільний рядок: <code>Герой:100HP</code> (без жодного пробілу!).</p>
+    </div>
+  
+    <div class="task-condition">
+      <b>Умова:</b><br>
+      1) Використай ДВА <code style="color: #0ea5e9;">print()</code>.<br>
+      2) Перший print друкує текст <code style="color: #0ea5e9;">"Герой:"</code> та число 100, отримане обчисленням <code style="color: #0ea5e9;">50 + 50</code>.<br>
+      3) У першому print обов'язково використай <code style="color: #0ea5e9;">sep=""</code> (щоб прибрати пробіл) та <code style="color: #0ea5e9;">end=""</code> (щоб не було переносу).<br>
+      4) Другий print просто додруковує текст <code style="color: #0ea5e9;">"HP"</code>.
+    </div>
+  `,
+  hint: `Подумай, як у першому print() прибрати і пробіл, і перехід на новий рядок, а другий використати лише для дописування кінця.`,
+  expected: `Герой:100HP`,
+  tests: [
+    { type: "stdoutEquals", name: "Точний вивід без пробілів", value: "Герой:100HP", normalize: "strict" },
+    { type: "codeRegex", name: "Рівно два print()", pattern: "print\\s*\\(", flags: "g", min: 2, max: 2 },
+    { type: "codeRegex", name: "Перший print друкує Герой: і 50 + 50", pattern: "print\\s*\\(\\s*['\\\"]Герой:['\\\"]\\s*,\\s*50\\s*\\+\\s*50\\s*,\\s*sep\\s*=\\s*['\\\"]['\\\"]\\s*,\\s*end\\s*=\\s*['\\\"]['\\\"]\\s*\\)", checkRaw: true },
+    { type: "codeRegex", name: "Другий print друкує HP", pattern: "print\\s*\\(\\s*['\\\"]HP['\\\"]\\s*\\)", checkRaw: true }
+  ]
+},
+
+{
+  title: "🐉 БОС (Junior): Профіль гравця",
+  xp: 500,
+  kind: "boss",
+  difficulty: "Junior",
+  theory: `
+    <h2 style="color: #ef4444; font-size: 18px; margin-bottom: 10px;">Фінальний іспит рівня Junior</h2>
+    <p>Ти вже знаєш усі базові інструменти для виводу тексту. Час поєднати їх в одному складному завданні <b style="color: #ef4444;">без жодних готових підказок</b>!</p>
+    <p>Тут тобі знадобляться:</p>
+    <ul style="padding-left: 20px;">
+      <li>Перенос рядка <code style="color: #0ea5e9;">\\n</code></li>
+      <li>Табуляція <code style="color: #0ea5e9;">\\t</code> (для рівних стовпчиків)</li>
+      <li>Лапки всередині тексту (екранування <code style="color: #0ea5e9;">\\"</code> або різні лапки)</li>
+      <li>Математика (числа без лапок)</li>
+      <li>Злиття без зайвих пробілів <code style="color: #0ea5e9;">sep=""</code></li>
+    </ul>
+  `,
+  desc: `
+    <div class="task-main">
+      <p>База даних має вивести профіль адміністратора. Слово Admin має бути в лапках, а між словом Rank: і числом 99 стоїть величезний пробіл (табуляція).</p>
+    </div>
+  
+    <div class="task-condition">
+      <b>Умови місії:</b><br>
+      1) Використай рівно <b>ОДИН</b> <code style="color: #0ea5e9;">print()</code>.<br>
+      2) Слово <code style="color: #0ea5e9;">Admin</code> обов'язково має бути в подвійних лапках.<br>
+      3) Зроби перехід на другий рядок за допомогою <code style="color: #0ea5e9;">\\n</code>.<br>
+      4) Зроби відступ після Rank: за допомогою <code style="color: #0ea5e9;">\\t</code>.<br>
+      5) Число 99 ти маєш отримати як результат додавання <code style="color: #0ea5e9;">90 + 9</code>.<br>
+      6) Використай параметр <code style="color: #0ea5e9;">sep=""</code>, щоб числа і текст склеїлися ідеально рівно.
+    </div>
+  `,
+  hint: `Тут потрібно в одному print() поєднати текст, спецсимволи і результат обчислення так, щоб вивід повністю збігся із зразком.`,
+  expected: `User: "Admin"\nRank:\t99`,
+  tests: [
+    {
+      type: "stdoutEquals",
+      name: "Профіль ідеальний",
+      value: "User: \"Admin\"\nRank:\t99",
+      normalize: "strict"
+    },
+    { type: "codeRegex", name: "Рівно один print()", pattern: "print\\s*\\(", flags: "g", min: 1, max: 1 },
+    { type: "codeIncludes", name: "Є \\n", value: "\\n", checkRaw: true },
+    { type: "codeIncludes", name: "Є \\t", value: "\\t", checkRaw: true },
+    { type: "codeRegex", name: "Є саме вираз 90 + 9", pattern: "90\\s*\\+\\s*9", checkRaw: true },
+    { type: "codeRegex", name: "Використано sep=\"\"", pattern: "sep\\s*=\\s*['\"]['\"]", checkRaw: true }
+  ]
+},
 
 // ==========================================
       // 🟡 РІВЕНЬ: MIDDLE (Спецсимволи, лапки та f-рядки)
