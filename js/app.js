@@ -1162,6 +1162,66 @@ async function runTaskTestsSmart(task, code) {
   return { allPass, results, exec };
 }
 
+
+function explainPythonError(rawError = "") {
+  const error = String(rawError || "");
+
+  if (/IndentationError:\s*unexpected indent/i.test(error)) {
+    return {
+      short: "Зайвий відступ на початку рядка.",
+      help: "Схоже, перед командою стоїть зайвий пробіл або Tab.",
+      tip: "Для простих команд на кшталт print(), input() або x = 5 рядок має починатися від самого лівого краю."
+    };
+  }
+
+  if (/IndentationError:\s*expected an indented block/i.test(error)) {
+    return {
+      short: "Після двокрапки потрібен відступ.",
+      help: "Після if, for, while, def та інших конструкцій із двокрапкою наступний рядок має бути з відступом.",
+      tip: "Перевір рядок після двокрапки (:)."
+    };
+  }
+
+  if (/IndentationError:\s*unindent does not match any outer indentation level/i.test(error)) {
+    return {
+      short: "Неправильні відступи в блоці коду.",
+      help: "У різних рядках, схоже, змішані різні відступи або їхня кількість не збігається.",
+      tip: "Спробуй вирівняти всі відступи однаково."
+    };
+  }
+
+  if (/SyntaxError/i.test(error) && /EOF/i.test(error)) {
+    return {
+      short: "Рядок не завершено.",
+      help: "Швидше за все, десь не вистачає лапки, дужки або іншого закриваючого символу.",
+      tip: "Перевір лапки, круглі дужки та коми."
+    };
+  }
+
+  if (/SyntaxError/i.test(error)) {
+    return {
+      short: "Синтаксична помилка в коді.",
+      help: "Python не зміг прочитати один із рядків.",
+      tip: "Перевір лапки, дужки, двокрапки та правильність написання команди."
+    };
+  }
+
+  if (/NameError/i.test(error)) {
+    return {
+      short: "Використано невідоме ім'я.",
+      help: "Швидше за все, є помилка в назві змінної або команди.",
+      tip: "Перевір, чи правильно написано print, input або назву змінної."
+    };
+  }
+
+  return {
+    short: "Програма зупинилась через помилку Python.",
+    help: "Подивись на технічне повідомлення нижче.",
+    tip: "Виправ помилку і спробуй ще раз."
+  };
+}
+
+
 function buildTerminalReport(runResult) {
     const { exec, results } = runResult;
     
@@ -1174,10 +1234,10 @@ function buildTerminalReport(runResult) {
     html += `<div style="margin-bottom: 20px;">`;
     html += `<div style="font-size:12px; color:var(--primary); font-weight:900; margin-bottom:6px;">📺 Твій вивід:</div>`;
     
-    if (!exec.ok) {
-      // Якщо синтаксична помилка (Python впав) - робимо червоний фон
-      html += `<div style="color: #fca5a5; background: rgba(239, 68, 68, 0.15); border-left: 3px solid #ef4444; padding: 10px 14px; border-radius: 6px; font-family: var(--mono); font-size: 14px; white-space: pre-wrap;">${escapeHtml(exec.error)}</div>`;
-    } else {
+if (!exec.ok) {
+  const friendly = explainPythonError(exec.error);
+  html += `<div style="background:rgba(239,68,68,0.10);border-left:3px solid #ef4444;padding:8px 10px;border-radius:6px;white-space:normal;line-height:1.25;"><div style="color:#fecaca;font-weight:800;font-size:13px;margin:0 0 4px 0;">❌ ${escapeHtml(friendly.short)}</div><div style="color:#fee2e2;font-size:12px;margin:0 0 4px 0;">${escapeHtml(friendly.help)}</div><div style="color:#fca5a5;font-size:12px;margin:0 0 6px 0;">💡 ${escapeHtml(friendly.tip)}</div><details style="margin:0;white-space:normal;"><summary style="cursor:pointer;color:#fda4af;font-weight:700;font-size:12px;">▶ Показати технічну помилку</summary><div style="margin-top:5px;color:#fca5a5;font-family:var(--mono);font-size:11px;line-height:1.3;white-space:pre-wrap;">${escapeHtml(exec.error)}</div></details></div>`;
+} else {
       // Якщо програма відпрацювала нормально - нейтральний фон
       const outText = exec.stdout ? escapeHtml(exec.stdout) : "<i style='color: rgba(255,255,255,0.3);'>(нічого не виведено)</i>";
       html += `<div style="color: var(--text); background: rgba(255, 255, 255, 0.05); border-left: 3px solid var(--text-dim); padding: 10px 14px; border-radius: 6px; font-family: var(--mono); font-size: 14px; white-space: pre-wrap; min-height: 42px;">${outText}</div>`;
@@ -1667,20 +1727,21 @@ _pendingInputResolve = null;
           const n = incAttempts(id);
           $("badgeAttempts").textContent = `Спроби: ${Math.min(n, 10)}/10`;
 
-          if (n >= 10 && !isSpoiled(id)) {
-            // solution becomes available, but NOT spoiled until click
-            if (solBox) {
-              solBox.style.display = "block";
-              solPre.textContent = "Рішення доступне після 10 спроб. Натисни кнопку, щоб відкрити (буде без XP).";
-              if (btnShowSol) btnShowSol.style.display = "inline-flex";
-            }
-            toast("🧩 Рішення стало доступним після 10 спроб");
-          } else {
-            toast("❌ Не всі тести пройдені");
-          }
-        } else {
-          toast("❌ Не всі тести пройдені");
-        }
+const runtimeFriendly = !run.exec?.ok ? explainPythonError(run.exec?.error || "") : null;
+
+if (n >= 10 && !isSpoiled(id)) {
+  if (solBox) {
+    solBox.style.display = "block";
+    solPre.textContent = "Рішення доступне після 10 спроб. Натисни кнопку, щоб відкрити (буде без XP).";
+    if (btnShowSol) btnShowSol.style.display = "inline-flex";
+  }
+  toast("🧩 Рішення стало доступним після 10 спроб");
+} else {
+  toast(!run.exec?.ok ? `❌ ${runtimeFriendly.short}` : "❌ Не всі тести пройдені");
+}
+} else {
+  toast(!run.exec?.ok ? `❌ ${runtimeFriendly.short}` : "❌ Не всі тести пройдені");
+}
         
         // Тут ми ПЕРЕРИВАЄМО виконання функції, якщо є помилка, щоб не йти в SUCCESS
         return; 
