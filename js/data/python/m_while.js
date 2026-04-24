@@ -15,7 +15,7 @@
       // 🟢 РІВЕНЬ: JUNIOR (Основи циклу while)
       // ==========================================
 
-      {
+     {
   title: "🔄 Повторюваний IF (while)",
   xp: 40,
   kind: "practice",
@@ -749,6 +749,49 @@
     { type: "codeRegex", name: "Цикл по прапорцю", pattern: "while\\s+is_playing\\s*:" },
     { type: "codeRegex", name: "Умова виходу", pattern: "if\\s+cmd\\s*==\\s*['\"]вихід['\"]\\s*:" },
     { type: "codeRegex", name: "Зміна прапорця", pattern: "\\n\\s{4,}is_playing\\s*=\\s*False", checkRaw: true }
+  ]
+},
+
+// ==========================================
+// 🟢 JUNIOR BOSS
+// ==========================================
+
+{
+  title: "🐉 БОС (Junior): Заправка ракети",
+  xp: 800,
+  kind: "boss",
+  difficulty: "Junior",
+  theory: `
+    <h2 style="color: #ef4444; font-size: 18px; margin-bottom: 10px;">Фінальний іспит: симуляція процесу</h2>
+    <p>Тут треба об'єднати цикл <code>while</code>, акумулятор, <code>input()</code>, лічильник і f-рядок.</p>
+    <p>Це фінальна перевірка того, чи розумієш ти, як цикл керує процесом.</p>
+  `,
+  desc: `
+    <div class="task-main">
+      <p>Ракета потребує 100 одиниць пального для зльоту. Користувач заливає пальне частинами. Програма має порахувати, скільки разів він доливав пальне.</p>
+    </div>
+
+    <div class="task-condition">
+      <b>Умови місії:</b><br>
+      1. Створи <code style="color: #0ea5e9;">fuel = 0</code> та <code style="color: #0ea5e9;">steps = 0</code>.<br>
+      2. Зроби цикл, який працює, поки <code style="color: #0ea5e9;">fuel &lt; 100</code>.<br>
+      3. Всередині циклу додавай до <code style="color: #0ea5e9;">fuel</code> число, яке введе користувач через <code style="color: #0ea5e9;">input("Залито: ")</code>.<br>
+      4. Там само збільшуй <code style="color: #0ea5e9;">steps</code> на 1.<br>
+      5. Після завершення циклу виведи f-рядок <code style="color: #0ea5e9;">Повний бак! Кроків: ...</code>, підставивши значення <code style="color: #0ea5e9;">steps</code>.
+    </div>
+
+    <div class="task-note">
+      <b>Важливо:</b> <code>steps</code> має збільшуватися на 1 кожного кола циклу, незалежно від того, скільки пального залили.
+    </div>
+  `,
+  hint: `Збери задачу з частин: акумулятор пального, лічильник кроків, input() з int() і фінальний f-рядок після циклу.`,
+  expected: `Залито: 100\nПовний бак! Кроків: 1`,
+  tests: [
+    { type: "codeRegex", name: "Дві змінні", pattern: "fuel\\s*=\\s*0.*steps\\s*=\\s*0", flags: "s" },
+    { type: "codeRegex", name: "Цикл fuel < 100", pattern: "while\\s+fuel\\s*<\\s*100\\s*:" },
+    { type: "codeRegex", name: "Акумулятор пального", pattern: "fuel\\s*\\+\\s*=\\s*int\\s*\\(\\s*input\\s*\\(\\s*['\"]Залито:\\s*['\"]\\s*\\)\\s*\\)" },
+    { type: "codeRegex", name: "Лічильник кроків", pattern: "steps\\s*\\+\\s*=\\s*1|steps\\s*=\\s*steps\\s*\\+\\s*1" },
+    { type: "codeRegex", name: "Друк f-рядком зовні", pattern: "\\nprint\\s*\\(\\s*f['\"]Повний бак! Кроків:\\s*\\{\\s*steps\\s*\\}['\"]\\s*\\)", checkRaw: true }
   ]
 },
 
