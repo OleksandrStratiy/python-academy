@@ -719,6 +719,11 @@ html[data-theme="light"] .code-box{
   color: rgba(15,23,42,.9);
 }
 
+code, .code-box {
+    font-variant-ligatures: none;
+    -webkit-font-variant-ligatures: none; /* Для підтримки браузерів на iOS/Mac */
+}
+
 /* Блок для результату (терміналу) у теорії */
 .output-box {
   background: rgba(0, 0, 0, 0.4);
@@ -5458,4 +5463,6 @@ body.teacher-mode .teacher-shell > *{
   border: 2px solid transparent;
   background-clip: padding-box;
 }
+
+
 
