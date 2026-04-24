@@ -22,40 +22,44 @@
         difficulty: "Junior",
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Що таке цикл?</h2>
-          <p>Ти вже знаєш команду <code>if</code>. Вона перевіряє умову, виконує код <b>ОДИН РАЗ</b> і йде далі.</p>
-          <p>Але що, якщо нам треба виконувати код знову і знову, поки умова не стане хибною? Для цього є команда <b style="color: #8b5cf6;"><code>while</code></b> (з англ. <i>поки</i>).</p>
+          <p>Ти вже знаєш команду <code>if</code>. Вона перевіряє умову, виконує код <b>один раз</b> і йде далі.</p>
+          <p>Але що, якщо нам треба виконувати код знову і знову, поки умова залишається істинною (правильною)? Для цього існує команда <b style="color: #8b5cf6;"><code>while</code></b> (з англ. <i>поки</i>).</p>
+          
+          <p>Можеш уявити, що <code>while</code> — це просто <code>if</code>, який повторюється по колу!</p>
           
           <p><b>Приклад коду:</b></p>
-          <div class="code-box">timer = 3<br><b style="color: #8b5cf6;">while</b> timer &gt; 0:<br>    print(timer)<br>    timer = timer - 1  <span style="color:gray;"># Зменшуємо таймер!</span><br>print("Старт!")</div>
+          <div class="code-box">timer = 3<br><b style="color: #8b5cf6;">while</b> timer &gt; 0:<br>&nbsp;&nbsp;&nbsp;&nbsp;print(timer)<br>&nbsp;&nbsp;&nbsp;&nbsp;timer = timer - 1&nbsp;&nbsp;<span style="color:#9ca3af;"># Зменшуємо таймер на 1</span><br>print("Старт!")</div>
           <p><b>Результат у терміналі:</b></p>
           <div class="output-box">3<br>2<br>1<br>Старт!</div>
           
           <div class="theory-alert theory-alert-danger">
-            🚨 <b style="color: #ef4444;">ВАЖЛИВО:</b> Всередині циклу обов'язково має бути команда, яка ЗМІНЮЄ змінну з умови. Інакше цикл ніколи не зупиниться (зависне)!
+            🚨 <b style="color: #ef4444;">ОБЕРЕЖНО — НЕСКІНЧЕННИЙ ЦИКЛ:</b><br>
+            Всередині циклу <b>обов'язково</b> має бути команда, яка змінює змінну з умови (у нашому випадку це <code>timer = timer - 1</code>). Якщо цього не зробити, умова ніколи не стане хибною, цикл ніколи не зупиниться, і програма "зависне"!
           </div>
         `,
         desc: `
           <div class="task-main">
-            <p>Програма веде зворотний відлік для запуску ракети. Вона друкує 3, потім 2, потім 1.</p>
+            <p>Програма веде зворотний відлік для запуску ракети. Вона має надрукувати 3, потім 2, потім 1, після чого цикл має успішно зупинитися.</p>
           </div>
 
           <div class="task-condition">
-            <b>Умова:</b> Створи змінну <code style="color: #0ea5e9;">sec = 3</code>.<br>
-            Напиши цикл: <code style="color: #0ea5e9;">while sec &gt; 0:</code><br>
-            Всередині (з відступом) виведи: <code style="color: #0ea5e9;">print(sec)</code>.<br>
-            На наступному рядку (теж з відступом) зменш змінну: <code style="color: #0ea5e9;">sec -= 1</code>.
+            <b>Умова:</b><br>
+            1. Створи змінну <code style="color: #0ea5e9;">sec = 3</code>.<br>
+            2. Напиши цикл: <code style="color: #0ea5e9;">while sec &gt; 0:</code><br>
+            3. Всередині (з відступом) виведи змінну на екран: <code style="color: #0ea5e9;">print(sec)</code>.<br>
+            4. На наступному рядку (теж з відступом) зменш змінну: <code style="color: #0ea5e9;">sec = sec - 1</code>.
           </div>
 
           <div class="task-note">
-            <b>Важливо:</b> Не забувай про двокрапку після умови та відступи!
+            <b>Важливо:</b> Не забувай про двокрапку після умови та обов'язкові відступи всередині циклу!
           </div>
         `,
-        hint: `while sec > 0:\n    print(sec)\n    sec -= 1`,
+        hint: `Побудуй цикл за цим шаблоном:\nwhile [твоя_умова]:\n    print(...)\n    sec = ...`,
         expected: `3\n2\n1`,
         tests: [
           { type: "stdoutEquals", name: "Відлік правильний", value: "3\n2\n1", normalize: "soft" },
           { type: "codeRegex", name: "Використано while", pattern: "while\\s+sec\\s*>\\s*0\\s*:" },
-          { type: "codeRegex", name: "Зменшення sec", pattern: "sec\\s*-\\s*=\\s*1|sec\\s*=\\s*sec\\s*-\\s*1" }
+          { type: "codeRegex", name: "Зменшення sec (sec = sec - 1)", pattern: "sec\\s*=\\s*sec\\s*-\\s*1" }
         ]
       },
 
@@ -67,33 +71,36 @@
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Рахуємо кроки</h2>
           <p>Цикли можуть не тільки зменшуватись, а й збільшуватись. Це найпопулярніший спосіб використання <code>while</code> — створення <b>лічильника</b>.</p>
+          <p>Логіка проста: ми починаємо з одиниці і щоразу додаємо до неї ще одну одиницю, поки не дійдемо до потрібної межі.</p>
           
           <p><b>Приклад коду:</b></p>
-          <div class="code-box">count = 1<br>while count &lt;= 3:<br>    print("Крок", count)<br>    count += 1</div>
+          <div class="code-box">count = 1<br><b style="color: #8b5cf6;">while</b> count &lt;= 3:<br>&nbsp;&nbsp;&nbsp;&nbsp;print("Крок", count)<br>&nbsp;&nbsp;&nbsp;&nbsp;count = count + 1&nbsp;&nbsp;<span style="color:#9ca3af;"># Збільшуємо лічильник на 1</span></div>
           <p><b>Результат у терміналі:</b></p>
           <div class="output-box">Крок 1<br>Крок 2<br>Крок 3</div>
         `,
         desc: `
           <div class="task-main">
-            <p>Персонаж робить кроки. Програма має порахувати кроки від 1 до 5 включно.</p>
+            <p>Персонаж робить кроки. Програма має послідовно порахувати їх від 1 до 5 включно і вивести на екран.</p>
           </div>
 
           <div class="task-condition">
-            <b>Умова:</b> Створи <code style="color: #0ea5e9;">step = 1</code>.<br>
-            Напиши цикл: <code style="color: #0ea5e9;">while step &lt;= 5:</code><br>
-            Всередині виведи <code style="color: #0ea5e9;">step</code> і обов'язково збільш його на 1 (<code style="color: #0ea5e9;">step += 1</code>).
+            <b>Умова:</b><br>
+            1. Створи змінну <code style="color: #0ea5e9;">step = 1</code>.<br>
+            2. Напиши цикл з умовою: <code style="color: #0ea5e9;">while step &lt;= 5:</code><br>
+            3. Всередині циклу (з відступом) виведи змінну на екран: <code style="color: #0ea5e9;">print(step)</code>.<br>
+            4. На наступному рядку обов'язково збільш її на одиницю: <code style="color: #0ea5e9;">step = step + 1</code>.
           </div>
 
           <div class="task-note">
-            <b>Важливо:</b> Ми використовуємо <code>&lt;= 5</code>, щоб число 5 теж було надруковано.
+            <b>Важливо:</b> Зверни увагу на знак <code>&lt;=</code> (менше або дорівнює). Якби ми написали просто <code>&lt; 5</code>, цикл зупинився б на четвірці, і п'ятий крок не надрукувався б!
           </div>
         `,
-        hint: `while step <= 5:\n    print(step)\n    step += 1`,
+        hint: `Побудуй цикл за цим шаблоном:\nwhile [твоя_умова]:\n    print(...)\n    step = ...`,
         expected: `1\n2\n3\n4\n5`,
         tests: [
           { type: "stdoutEquals", name: "Лічильник працює", value: "1\n2\n3\n4\n5", normalize: "soft" },
           { type: "codeRegex", name: "Умова <= 5", pattern: "while\\s+step\\s*<=\\s*5\\s*:" },
-          { type: "codeRegex", name: "Збільшення step", pattern: "step\\s*\\+\\s*=\\s*1|step\\s*=\\s*step\\s*\\+\\s*1" }
+          { type: "codeRegex", name: "Збільшення step (step = step + 1)", pattern: "step\\s*=\\s*step\\s*\\+\\s*1|step\\s*\\+\\s*=\\s*1" }
         ]
       },
 
@@ -104,33 +111,33 @@
         difficulty: "Junior",
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Що зламало комп'ютер?</h2>
-          <p>Якщо ти забудеш додати команду, яка змінює змінну (наприклад, <code>lvl += 1</code>), умова <code>while</code> завжди буде залишатися <code>True</code>.</p>
-          <p>Програма застрягне в цьому блоці назавжди і буде друкувати одне й те саме, поки комп'ютер не зависне!</p>
+          <p>Якщо ти забудеш додати команду, яка змінює змінну (наприклад, <code>lvl = lvl + 1</code>), умова <code>while</code> завжди буде залишатися <code>True</code> (істинною).</p>
+          <p>Програма застрягне в цьому блоці назавжди і буде друкувати одне й те саме, поки комп'ютер або вкладка браузера не "зависне"!</p>
           
-          <p><b>Приклад БАГА:</b></p>
-          <div class="code-box">x = 1<br>while x &lt; 3:<br>    print("Зависло!") <span style="color:gray;"># Забули збільшити x</span></div>
+          <p><b>Приклад БАГА (помилки):</b></p>
+          <div class="code-box">x = 1<br><b style="color: #8b5cf6;">while</b> x &lt; 3:<br>&nbsp;&nbsp;&nbsp;&nbsp;print("Зависло!")&nbsp;&nbsp;<span style="color:#9ca3af;"># Забули збільшити x!</span></div>
         `,
         desc: `
           <div class="task-main">
-            <p>Учень написав код для отримання рівнів від 1 до 3, але забув збільшити лічильник. Програма зламалась. Виправ її.</p>
+            <p>Хтось написав код для отримання рівнів від 1 до 3, але забув збільшити лічильник. Програма зламалась. Твоє завдання — відтворити код і виправити його!</p>
           </div>
 
           <div class="task-condition">
-            <b>Умова:</b> Ось зламаний код:<br>
-            <code style="color: #0ea5e9;">lvl = 1</code><br>
-            <code style="color: #0ea5e9;">while lvl &lt;= 3:</code><br>
-            &nbsp;&nbsp;&nbsp;&nbsp;<code style="color: #0ea5e9;">print(lvl)</code><br>
-            Додай у цикл (з відступом!) рядок, який буде збільшувати <code style="color: #0ea5e9;">lvl</code> на 1.
+            <b>Умова:</b><br>
+            1. Створи лічильник: <code style="color: #0ea5e9;">lvl = 1</code>.<br>
+            2. Напиши цикл: <code style="color: #0ea5e9;">while lvl &lt;= 3:</code><br>
+            3. Всередині виведи рівень на екран: <code style="color: #0ea5e9;">print(lvl)</code>.<br>
+            4. <b>Виправлення багу:</b> Одразу під <code style="color: #0ea5e9;">print</code> (з таким самим відступом!) додай рядок, який збільшує <code style="color: #0ea5e9;">lvl</code> на 1.
           </div>
 
           <div class="task-note">
-            <b>Важливо:</b> Без цього рядка твій браузер зависне під час перевірки! Будь уважним.
+            <b>Важливо:</b> Без цього 4-го рядка твій браузер намертво зависне під час перевірки! Будь дуже уважним.
           </div>
         `,
-        hint: `Додай lvl += 1 відразу після print.`,
+        hint: `Щоб цикл не був нескінченним, додай новий рядок під print:\nlvl = ... (не забудь про відступ!)`,
         expected: `1\n2\n3`,
         tests: [
-          { type: "stdoutEquals", name: "Цикл завершився", value: "1\n2\n3", normalize: "soft" },
+          { type: "stdoutEquals", name: "Цикл завершився успішно", value: "1\n2\n3", normalize: "soft" },
           { type: "codeRegex", name: "Лічильник збільшується", pattern: "lvl\\s*\\+\\s*=\\s*1|lvl\\s*=\\s*lvl\\s*\\+\\s*1" }
         ]
       },
@@ -142,11 +149,11 @@
         difficulty: "Junior",
         theory: `
           <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Пароль, будь ласка</h2>
-          <p>Умова циклу не обов'язково має бути математичною. Ми можемо перевіряти рядки!</p>
-          <p>Наприклад, <code>while word != "стоп":</code> означає "Повторюй код, ПОКИ слово НЕ дорівнює 'стоп'".</p>
+          <p>Умова циклу не обов'язково має бути математичною. Ми можемо перевіряти текст (рядки)!</p>
+          <p>Наприклад, <code>while word != "стоп":</code> означає "Повторюй код, <b>ПОКИ</b> слово <b>НЕ</b> дорівнює 'стоп'".</p>
           
           <p><b>Приклад коду:</b></p>
-          <div class="code-box">ans = ""<br>while ans != "так":<br>    ans = input("Ти згоден? ")</div>
+          <div class="code-box">ans = ""<br><b style="color: #8b5cf6;">while</b> ans != "так":<br>&nbsp;&nbsp;&nbsp;&nbsp;ans = input("Ти згоден? ")</div>
         `,
         desc: `
           <div class="task-main">
@@ -157,58 +164,60 @@
             <b>Умова:</b><br>
             1. Створи порожню змінну: <code style="color: #0ea5e9;">pwd = ""</code>.<br>
             2. Напиши цикл: <code style="color: #0ea5e9;">while pwd != "секрет":</code><br>
-            3. Всередині циклу ПЕРЕЗАПИШИ змінну: <code style="color: #0ea5e9;">pwd = input("Пароль: ")</code>.
+            3. Всередині циклу (з відступом!) ПЕРЕЗАПИШИ змінну: <code style="color: #0ea5e9;">pwd = input("Пароль: ")</code>.
           </div>
 
           <div class="task-note">
-            <b>Важливо:</b> Ми створили порожню <code>pwd</code> перед циклом спеціально для того, щоб програма не зламалась при першій перевірці. Під час тесту введи будь-що, а потім "секрет".
+            <b>Важливо:</b> Ми створили порожню <code>pwd = ""</code> перед циклом спеціально для того, щоб програма не зламалась при першій перевірці умови. Під час тесту система сама введе кілька неправильних слів, а потім "секрет".
           </div>
         `,
-        hint: `while pwd != "секрет":\n    pwd = input("Пароль: ")`,
+        hint: `Побудуй код за шаблоном:\npwd = ""\nwhile [твоя_умова]:\n    pwd = input(...)`,
         expected: `Пароль: секрет`,
         tests: [
           { type: "codeRegex", name: "Правильний while", pattern: "while\\s+pwd\\s*!=\\s*['\"]секрет['\"]\\s*:" },
-          { type: "codeRegex", name: "Input всередині циклу", pattern: "\\n\\s+pwd\\s*=\\s*input" }
+          { type: "codeRegex", name: "Input всередині циклу", pattern: "pwd\\s*=\\s*input\\s*\\(\\s*['\"]Пароль:\\s*['\"]\\s*\\)" }
         ]
       },
 
-      {
+{
         title: "🔋 Акумулятор (Збираємо дані)",
         xp: 60,
         kind: "practice",
         difficulty: "Junior",
         theory: `
-          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Копилка</h2>
-          <p>Ми можемо використовувати цикл, щоб накопичувати якісь значення (збирати монети, отримувати урон).</p>
-          <p>Для цього ми створюємо змінну-акумулятор перед циклом (наприклад, <code>total = 0</code>), а всередині циклу постійно додаємо до неї щось нове (<code>total += 10</code>).</p>
+          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Скарбничка</h2>
+          <p>Ми можемо використовувати цикл, щоб накопичувати якісь значення (наприклад, збирати монети в грі або рахувати отриману шкоду).</p>
+          <p>Для цього ми створюємо змінну-акумулятор <b>перед циклом</b> (наприклад, <code>total = 0</code>), а <b>всередині циклу</b> постійно додаємо до неї щось нове (<code>total = total + 10</code>).</p>
           
           <p><b>Приклад коду:</b></p>
-          <div class="code-box">score = 0<br>while score &lt; 20:<br>    score += 10<br>    print(score)</div>
+          <div class="code-box">score = 0<br><b style="color: #8b5cf6;">while</b> score &lt; 20:<br>&nbsp;&nbsp;&nbsp;&nbsp;score = score + 10&nbsp;&nbsp;<span style="color:#9ca3af;"># Додаємо бали</span><br>&nbsp;&nbsp;&nbsp;&nbsp;print(score)</div>
           <p><b>Результат у терміналі:</b></p>
           <div class="output-box">10<br>20</div>
         `,
         desc: `
           <div class="task-main">
-            <p>Гравець заробляє по 5 золота за крок. Цикл зупиниться, як тільки він збере 20 золота.</p>
+            <p>Гравець заробляє по 5 золотих монет за кожен крок. Цикл має працювати, поки гравець не збере 20 золотих.</p>
           </div>
 
           <div class="task-condition">
-            <b>Умова:</b> Створи <code style="color: #0ea5e9;">gold = 0</code>.<br>
-            Напиши цикл: <code style="color: #0ea5e9;">while gold &lt; 20:</code><br>
-            Всередині циклу додавай по 5 монет: <code style="color: #0ea5e9;">gold += 5</code> і виводь <code style="color: #0ea5e9;">print(gold)</code>.
+            <b>Умова:</b><br>
+            1. Створи змінну-акумулятор: <code style="color: #0ea5e9;">gold = 0</code>.<br>
+            2. Напиши цикл з умовою: <code style="color: #0ea5e9;">while gold &lt; 20:</code><br>
+            3. Всередині циклу (з відступом!) збільшуй кількість монет: <code style="color: #0ea5e9;">gold = gold + 5</code>.<br>
+            4. На наступному рядку в циклі виведи результат на екран: <code style="color: #0ea5e9;">print(gold)</code>.
           </div>
 
           <div class="task-note">
-            <b>Важливо:</b> Зверни увагу, як змінна росте з кожним кроком, поки не досягне ліміту.
+            <b>Важливо:</b> Зверни увагу, як значення змінної <code>gold</code> зростає з кожним кроком циклу, поки не досягне ліміту.
           </div>
         `,
-        hint: `while gold < 20:\n    gold += 5\n    print(gold)`,
+        hint: `Побудуй код за шаблоном:\ngold = 0\nwhile [твоя_умова]:\n    gold = ...\n    print(...)`,
         expected: `5\n10\n15\n20`,
         tests: [
           { type: "stdoutEquals", name: "Золото зібрано", value: "5\n10\n15\n20", normalize: "soft" },
           { type: "codeRegex", name: "Збільшення акумулятора", pattern: "gold\\s*\\+\\s*=\\s*5|gold\\s*=\\s*gold\\s*\\+\\s*5" }
         ]
-      },
+      },  
 
       {
         title: "🩸 Битва з Босом",
